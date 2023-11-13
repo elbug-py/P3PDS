@@ -11,6 +11,9 @@ from enum import Enum
 import random
 import string
 from datetime import datetime
+from fastapi_mqtt.fastmqtt import FastMQTT
+from fastapi_mqtt.config import MQTTConfig
+
 
 
 def get_db():
@@ -172,6 +175,17 @@ def generar_clave_alfanumerica(longitud=12):
 
 app = FastAPI()
 
+mqtt_config = MQTTConfig(
+    host="ab34c5b092fc416db7e2f21aa7d38514.s1.eu.hivemq.cloud",
+    port=8883,
+    ssl=True,
+    keepalive=60,
+    username="M0ki1",
+    password="1331Mati??",
+)
+mqtt = FastMQTT(config=mqtt_config)
+mqtt.init_app(app)
+
 estados_generales = {
     0: "available",
     1: "reserved",
@@ -179,6 +193,30 @@ estados_generales = {
     3: "used",
     4: "unloading"
 }
+
+
+@mqtt.on_connect()
+def connect(client, flags, rc, properties):
+    mqtt.client.subscribe("/mqtt") #subscribing mqtt topic
+    print("Connected: ", client, flags, rc, properties)
+
+@mqtt.on_message()
+async def message(client, topic, payload, qos, properties):
+    print("Received message: ",topic, payload.decode(), qos, properties)
+    return 0
+
+@mqtt.subscribe("/test1")
+async def message_to_topic(client, topic, payload, qos, properties):
+    print("Received message to specific topic: ", topic, payload.decode(), qos, properties)
+
+@mqtt.on_disconnect()
+def disconnect(client, packet, exc=None):
+    print("Disconnected")
+
+@mqtt.on_subscribe()
+def subscribe(client, mid, qos, properties):
+    print("subscribed", client, mid, qos, properties)
+
 
 # del pdf es la 1
 @app.get("/stations",tags=['GET STATIONS'])
@@ -276,9 +314,6 @@ async def confirm_reservation(reservation: int, db: dp_dependecy):
             return {"message": f"Error: {e}"}
     except requests.exceptions.Timeout:
         return {"message": "Timeout error"}
-    
-
-    
     
 # del pdf es la 4
 @app.post('/cancel_reservation', tags=['CANCEL RESERVATION'])
@@ -421,71 +456,8 @@ async def ready(reservation: int, db: dp_dependecy):
     except requests.exceptions.Timeout:
         return {"message": "Timeout error"}
     
-# 7 del pdf
 
+async def func():
+    mqtt.publish("/test1", "Hello from Fastapi") #publishing mqtt topic
 
-
-# @app.get('/verification', tags=['VERIFICATION'])
-# async def hardware_verification():
-#     data_to_send = {"accion":"verificacion","casillero":"1"}
-#     url = f"http://{esp32_ip}:{esp32_port}"
-#     response = requests.post(url,json=data_to_send)
-#     print(response.text)
-
-#     if response.status_code == 200:
-#         return {"content": response.text}
-#     else:
-#         return {"message": "Failed to send POST request to ESP32", "status_code": response.status_code,"estados":state}
-    
-
-# @app.post('/cargar', tags=['CARGAR'])
-# async def cargar(cajon:str): #TODO NUMERO DE CAJON
-
-#     #VERIFICAR QUE EL CASILLERO ESTE RESERVADOR
-#     if state[cajon]["estado"] !=2:
-#         return {"message": "Failed to Cargar, no esta Reservado"}
-
-#     data_to_send = {"accion":"cargar","casillero":cajon}
-#     url = f"http://{esp32_ip}:{esp32_port}"
-#     response = requests.post(url,json=data_to_send)
-
-
-#     if response.status_code == 200:
-#         state[cajon]["estado"] = 1
-#         return {"content": response.text}
-#     else:
-#         return {"message": "Failed to send POST request to ESP32", "status_code": response.status_code}
-
-# @app.post('/retirar', tags=['RETIRAR'])
-# async def cargar(cajon:str): #TODO NUMERO DE CAJON
-
-#     #VERIFICAR QUE EL CASILLERO ESTE RESERVADOR
-#     if state[cajon]["estado"] != 1:
-#         return {"message": "Failed to Retirar"}
-
-
-#     data_to_send = {"accion":"retirar","casillero":cajon}
-#     url = f"http://{esp32_ip}:{esp32_port}"
-#     response = requests.post(url,json=data_to_send)
-#     # print("papi que ta pasando")
-#     # return {"content": "RETIRADO "}
-
-#     if response.status_code == 200:
-#         state[cajon]["estado"] = 0
-
-#         return {"content": response.text}
-#     else:
-#         return {"message": "Failed to send POST request to ESP32", "status_code": response.status_code}
-
-# @app.post('/reservar', tags=['RESERVAR'])
-# async def cargar(cajon:str): #TODO NUMERO DE CAJON
-
-#     #VERIFICAR QUE EL CASILLERO ESTE RESERVADOR
-#     if state[cajon]["estado"] != 0:
-#         return {"message": "Failed to Reservar, No esta disponible"}
-        
-#     data_to_send = {"accion":"retirar","casillero":cajon}
-#     url = f"http://{esp32_ip}:{esp32_port}"
-#     #TODO DINAMICO
-#     state["1"]["estado"] = 2
-#     return {"content":"Exito!"}
+    return {"result": True,"message":"Published" }
