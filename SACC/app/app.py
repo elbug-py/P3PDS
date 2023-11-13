@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends,BackgroundTasks
 import requests
 import models
 from database import engine, SessionLocal
@@ -10,8 +10,9 @@ from itertools import permutations
 from enum import Enum
 import random
 import string
+import os
+from send_email import send_email_async
 from datetime import datetime
-
 
 def get_db():
     db = SessionLocal()
@@ -244,6 +245,9 @@ async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: i
                 sql_query = text(f"INSERT INTO states (locker_id, state) VALUES ({locker}, 1)")
                 db.execute(sql_query)
                 db.commit()
+                
+                # ACA DEBERIA DE MANDAR EL CORREO Y TAMBIEN MANDAR UN MQTT CON QUE EL ESTADO DE ESE LOCKER 
+                #PASA A 1 -> RESERVADO
                 return {"message": "Reservation successful", "locker_id": locker, "station_id": station_by_locker_id(db, locker)[0], "code": clave}
         except Exception as e:
             return {"message": f"Error: {e}"}
@@ -268,9 +272,23 @@ async def confirm_reservation(reservation: int, db: dp_dependecy):
                 sql_query = text(f"SELECT * FROM locker WHERE id = {reserva[2]}")
                 result = db.execute(sql_query)
                 locker_obtenido = result.fetchone()
+                #Igual la idea aca es que si pasa mucho tiempo gg y murio la reserva por lo que
+                #Habria que borrarla de la BBDD
                 if locker_obtenido[2] == 1:
+                    #Correo de que el operario debe ver esta 
+                    sql_query = text(f'SELECT * FROM "user" WHERE id={1}')
+                    result = db.execute(sql_query)
+                    operario = result.fetchone()
+                    await send_email_async('Verificar medidas',f'{operario[2]}',
+                            f"debes verificar la reserva {reservation}")
+                    #TODO va a entregar y el mqtt cambiar el estado del cajon especifico a reservado
+                    
+
+
+
                     return {"message": f"Time passed since reservation: {time_difference}"}
                 else:
+                    #TODO cambiar mqtt a disponible si esto pasa cajon, 0
                     return {"message": f"Failed to confirm reservation, locker is not reserved, it is {estados_generales[locker_obtenido[2]]} "}
         except Exception as e:
             return {"message": f"Error: {e}"}
@@ -304,6 +322,13 @@ async def cancel_reservation(reservation: int, db: dp_dependecy): #TODO NUMERO D
                     sql_query = text(f"INSERT INTO states (locker_id, state) VALUES ({locker_obtenido[0]}, 0)")
                     db.execute(sql_query)
                     db.commit()
+                    #TODO Cambiar cajon a disponible con el mqtt
+
+
+
+
+
+
                     return {"message": "Reservation canceled successfully"}
                 else:
                     return {"message": f"Failed to cancel reservation, locker is not reserved, it is {estados_generales[locker_obtenido[2]]} "}
@@ -363,10 +388,19 @@ async def confirm(height: int, width: int, depth: int, reservation: int, db: dp_
                 else:
                     #compare the dimensions of the package with the dimensions of the locker
                     if height <= locker[3] and width <= locker[4] and depth <= locker[5]:
-                        
+
+                        #TODO
+                        #Mandar correo a operario con la clave de este locker para que lo 
+                        #pueda abrir
+                        sql_query = text(f'SELECT * FROM "user" WHERE id={1}')
+                        result = db.execute(sql_query)
+                        operario = result.fetchone()
+                        await send_email_async('Entregar Product',f'{operario[2]}',
+                                f"Debes entregar en la Estacion G1 el paquete con reservacion {reservation} con el codigo: {locker[6]}")
                         return {"message": "Package confirmed"}
                     else:
                         sql_query = text(f"UPDATE locker SET state = 0 WHERE id = {locker[0]}")
+                        #TODO mandar mqtt para cambiar el estado del locker a disponible
                         db.execute(sql_query)
                         db.commit()
                         sql_query = text(f"UPDATE reservation SET estado = 'cancelada' WHERE reservation.id = {reservation}")
@@ -397,6 +431,9 @@ async def confirm(height: int, width: int, depth: int, reservation: int, db: dp_
             return {"message": f"Error: {e}"}
     except requests.exceptions.Timeout:
         return {"message": "Timeout error"}
+    
+
+
 
 # 7 del pdf
 @app.post('/ready', tags=['READY'])
@@ -415,12 +452,126 @@ async def ready(reservation: int, db: dp_dependecy):
                 if user is None:
                     return {"message": "Failed to ready, user does not exist"}
                 else:
+                    #TODO ACA MANDAR UN CORREO AL USER
                     return {"message": f'user {user[1]} ready to pick up package'}
         except Exception as e:
             return {"message": f"Error: {e}"}
     except requests.exceptions.Timeout:
         return {"message": "Timeout error"}
     
+
+@app.post('/load', tags = ["LOAD"])
+async def load(reservation: int,code: str, db: dp_dependecy):
+    try:
+        try:
+            sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
+            result = db.execute(sql_query)
+            reserva = result.fetchone()
+            if reserva is None:
+                return {"message": "Failed to confirm, reservation does not exist"}
+            else:
+                sql_query = text(f'SELECT * FROM locker WHERE id = {reserva[2]}')
+                result = db.execute(sql_query)
+                locker = result.fetchone()
+                if locker is None:
+                    return {"message": "Failed to confirm, locker does not exist"}
+                else:
+                    if locker[6] != code:
+                        print(locker[6])
+                        return {"message":"Clave incorrecta"}
+                    sql_query = text(f"INSERT INTO states (locker_id, state) VALUES ({locker[0]}, 3)")
+                    db.execute(sql_query)
+                    db.commit()
+                    sql_query = text(f"UPDATE locker SET state = 3 WHERE id = {locker[0]}")
+                    db.execute(sql_query)
+                    db.commit()
+                    print(locker[6])
+                    #TODO aca debo hacer la llamada MQTT para abrir el cajon
+                    sql_query = text(f'SELECT * FROM "user" WHERE id = {reserva[1]}')
+                    result = db.execute(sql_query)
+                    user = result.fetchone()
+                    clave = generar_clave_alfanumerica()
+                    sql_query = text(f"UPDATE locker SET code = '{clave}' WHERE locker.id = {locker[0]}")
+                    db.execute(sql_query)
+                    db.commit()
+                    print(f"Nueva clave: ${clave}")
+                    #TODO mandar el correo a este usuario con la nueva clave
+                    sql_query = text(f'SELECT * FROM "user" WHERE id={3}')
+                    result = db.execute(sql_query)
+                    cliente = result.fetchone()
+                    await send_email_async('Retirar producto',f'{cliente[2]}',
+                            f"Debes retirar en la Estacion G1 el paquete con reservacion {reservation} con el codigo: {clave}")
+
+
+
+
+                    return {"message": f"Se ha abierto el espacio {locker[1]}, la nueva clave es {clave}"}
+        except Exception as E:
+            return {"message": f"{E}"}
+    except requests.exceptions.Timeout:
+        return {"message": "Timeout error"}
+
+
+@app.post('/unload', tags = ["UNLOAD"])
+async def load(reservation: int,code: str, db: dp_dependecy):
+    try:
+        try:
+            sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
+            result = db.execute(sql_query)
+            reserva = result.fetchone()
+            if reserva is None:
+                return {"message": "Failed to confirm, reservation does not exist"}
+            else:
+                sql_query = text(f'SELECT * FROM locker WHERE id = {reserva[2]}')
+                result = db.execute(sql_query)
+                locker = result.fetchone()
+                if locker is None:
+                    return {"message": "Failed to confirm, locker does not exist"}
+                else:
+                    if locker[6] != code:
+                        print(locker[6])
+                        return {"message":"Clave incorrecta"}
+                    sql_query = text(f"INSERT INTO states (locker_id, state) VALUES ({locker[0]}, 0)")
+                    db.execute(sql_query)
+                    db.commit()
+                    sql_query = text(f"UPDATE locker SET state = 0 WHERE id = {locker[0]}")
+                    db.execute(sql_query)
+                    db.commit()
+                    sql_query = text(f"UPDATE reservation SET estado = finalizada WHERE id = {reservation}")
+                    db.execute(sql_query)
+                    db.commit()
+                    
+                    print(locker[6])
+                    #TODO aca debo hacer la llamada MQTT para abrir el cajon
+
+                   
+                    sql_query = text(f"UPDATE locker SET code = NULL WHERE locker.id = {locker[0]}")
+                    db.execute(sql_query)
+                    db.commit()
+
+
+
+
+                    return {"message": f"Se ha abierto el espacio {locker[1]}"}
+        except Exception as E:
+            return {"message": f"{E}"}
+    except requests.exceptions.Timeout:
+        return {"message": "Timeout error"}
+
+
+@app.get('/send-email/asynchronous', tags = ["TEST_MAILER"])
+async def send_email_asynchronous():
+    await send_email_async('Hello World','mamunoz11@miuandes.cl',
+    {'title': 'Hello World', 'name': 'John Doe'})
+    return 'Success'
+
+@app.get("/test",tags=["TEST"])
+async def test(db:dp_dependecy):
+    sql_query = text(f'SELECT * FROM "user" WHERE id={1}')
+    result = db.execute(sql_query)
+    operario = result.fetchone()
+    print(operario[2])
+    return "lol"
 # 7 del pdf
 
 
