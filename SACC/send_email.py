@@ -15,7 +15,7 @@ class Envs:
   
 conf = ConnectionConfig(
     MAIL_USERNAME = "ssacc2553@gmail.com",
-    MAIL_PASSWORD = "kyce nqns ohhv puxx",
+    MAIL_PASSWORD = "",
     MAIL_FROM = "ssacc2553@gmail.com",
     MAIL_PORT = 587,
     MAIL_SERVER = "smtp.gmail.com",
