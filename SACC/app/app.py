@@ -206,7 +206,7 @@ mqtt_config = MQTTConfig(
     ssl=True,
     keepalive=60,
     username="M0ki1",
-    password="1331Mati??",
+    password="",
 )
 mqtt = FastMQTT(config=mqtt_config)
 mqtt.init_app(app)
