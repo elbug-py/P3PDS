@@ -152,37 +152,16 @@ def station_by_locker_id(db: Session, locker_id: int):
     result = db.execute(sql_query)
     return result.fetchone()
 
+def calcular_volumen(tupla):
+    alto, ancho, profundo = tupla[3], tupla[4], tupla[5]
+    return alto * ancho * profundo
+
 def encontrar_locker_mas_pequeno(alto_paquete, ancho_paquete, profundidad_paquete, lockers):
-    """
-    Encuentra la caja más pequeña posible que puede acomodar un paquete dado.
-
-    Args:
-    - alto_paquete (float): Alto del paquete.
-    - ancho_paquete (float): Largo del paquete.
-    - profundidad_paquete (float): Profundidad del paquete.
-    - lockers (list): lista de lockers, formato (locker_id, station_id): (alto, largo, profundidad).
-
-    Returns:
-    - locker or None: id del locker más pequeño posible. Si no hay ninguna caja que pueda acomodar el paquete, retorna None.
-    """
-    mejor_locker = None
-    mejor_volumen = float(1000*1000*1000)
-    dimensiones_permutadas = permutations([alto_paquete, ancho_paquete, profundidad_paquete])
-
-    for locker in lockers:
-        for dimensiones_paquete in dimensiones_permutadas:
-            alto_paquete, ancho_paquete, profundidad_paquete = locker[3], locker[4], locker[5]
-            if (
-                dimensiones_paquete[0] <= alto_paquete and
-                dimensiones_paquete[1] <= ancho_paquete and
-                dimensiones_paquete[2] <= profundidad_paquete
-            ):
-                volumen_locker = alto_paquete * ancho_paquete * profundidad_paquete
-                if volumen_locker < mejor_volumen:
-                    mejor_locker = locker[0]
-                    mejor_volumen = volumen_locker
-
-    return mejor_locker
+    lockers_ordenados = sorted(lockers, key=calcular_volumen)
+    for i in lockers_ordenados:
+        if alto_paquete <= i[3] and ancho_paquete <= i[4] and profundidad_paquete <= i[5]:
+            return i
+    return None
 
 def generar_clave_alfanumerica(longitud=12):
     """
@@ -285,8 +264,8 @@ async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: i
             user = result.fetchone()
             if user is None:
                 return {"message": "Failed to reserve, user does not exist"}
-            locker = encontrar_locker_mas_pequeno(alto_paquete, ancho_paquete, profundidad_paquete, lockers)
-            if locker is None:
+            locker_encontrado = encontrar_locker_mas_pequeno(alto_paquete, ancho_paquete, profundidad_paquete, lockers)
+            if locker_encontrado is None:
                 return {"message": "Failed to reserve, package is too big for available lockers"}
             else:
                 # Creo una orden ficticia, porque debería exisitr una orden de antes
@@ -294,23 +273,23 @@ async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: i
                 db.add(db_order)
                 db.commit()
                 # Reservo el locker cambiando el estado
-                sql_query = text(f"UPDATE locker SET state = 1 WHERE id = {locker}")
+                sql_query = text(f"UPDATE locker SET state = 1 WHERE id = {locker_encontrado[0]}")
                 db.execute(sql_query)
                 db.commit()
                 # Creo la reserva
-                db_reservation = models.Reservation(user_id=user_id, order_id=db_order.id, locker_id=locker, locker_personal_id=get_locker_personal_id(db, locker), station_id=station_by_locker_id(db, locker)[0], fecha=datetime.now(), estado="activa")
+                db_reservation = models.Reservation(user_id=user_id, order_id=db_order.id, locker_id=locker_encontrado[0], locker_personal_id=get_locker_personal_id(db, locker_encontrado[0]), station_id=station_by_locker_id(db, locker_encontrado[0])[0], fecha=datetime.now(), estado="activa")
                 db.add(db_reservation)
                 db.commit()
                 # asigno un codigo al locker
                 clave = generar_clave_alfanumerica()
-                sql_query = text(f"UPDATE locker SET code = '{clave}' WHERE locker.id = {locker}")
+                sql_query = text(f"UPDATE locker SET code = '{clave}' WHERE locker.id = {locker_encontrado[0]}")
                 db.execute(sql_query)
                 db.commit()
                 # añadir el cambio de estado a la tabla states
-                sql_query = text(f"INSERT INTO states (locker_id, state) VALUES ({locker}, 1)")
+                sql_query = text(f"INSERT INTO states (locker_id, state) VALUES ({locker_encontrado[0]}, 1)")
                 db.execute(sql_query)
                 db.commit()
-                sql_query = text(f'SELECT * FROM "locker" WHERE id = {locker}')
+                sql_query = text(f'SELECT * FROM "locker" WHERE id = {locker_encontrado[0]}')
                 result = db.execute(sql_query)
                 locker_personal = result.fetchone()
                 
@@ -318,13 +297,13 @@ async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: i
                 #PASA A 1 -> RESERVADO
                 #TODO hacer esto dinamico para la estaciona asignada pipipi
                 print("no llegue")
-                print(locker)
+                print(locker_encontrado[0])
                 mqtt.publish("g1/reserve", {"nickname":f"{locker_personal[1]}","state":"1"}) #publishing mqtt topic
                 print("QUE TA PASANDO")
                 mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
 
 
-                return {"message": "Reservation successful", "locker_id": locker, "station_id": station_by_locker_id(db, locker)[0], "code": clave}
+                return {"message": "Reservation successful", "locker_id": locker_encontrado[0], "station_id": station_by_locker_id(db, locker_encontrado[0])[0], "code": clave}
         except Exception as e:
             return {"message": f"Error: {e}"}
     except requests.exceptions.Timeout:
@@ -345,7 +324,7 @@ async def confirm_reservation(reservation: int, db: dp_dependecy):
                 time_reserved = reserva[6]
                 time_now = datetime.now()
                 time_difference = time_now - time_reserved
-                sql_query = text(f"SELECT * FROM locker WHERE id = {reserva[2]}")
+                sql_query = text(f"SELECT * FROM locker WHERE id = {reserva[3]}")
                 result = db.execute(sql_query)
                 locker_obtenido = result.fetchone()
                 #Igual la idea aca es que si pasa mucho tiempo gg y murio la reserva por lo que
@@ -366,7 +345,7 @@ async def confirm_reservation(reservation: int, db: dp_dependecy):
                     return {"message": f"Time passed since reservation: {time_difference}"}
                 else:
                     #TODO cambiar mqtt a disponible si esto pasa cajon, 0
-                    # mqtt.publish("g1/reserve", {"nickname":locker[1],"state":0}) #publishing mqtt topic
+                    mqtt.publish("g1/reserve", {"nickname":locker_obtenido[1],"state":0}) #publishing mqtt topic
                     
                     return {"message": f"Failed to confirm reservation, locker is not reserved, it is {estados_generales[locker_obtenido[2]]} "}
         except Exception as e:
@@ -492,26 +471,28 @@ async def confirm(height: int, width: int, depth: int, reservation: int, db: dp_
                         sql_query = text(f"INSERT INTO states (locker_id, state) VALUES ({locker[0]}, 0)")
                         db.execute(sql_query)
                         db.commit()
-
-                        sql_query = text(f"SELECT * FROM locker WHERE height >= {height} AND width >= {width} AND depth >= {depth} AND state = 0")
+                        sql_query = text(f"SELECT * FROM locker WHERE state = 0")
                         result = db.execute(sql_query)
-                        lockers = result.fetchone()
-                        if lockers is None:
+                        lockers = result.fetchall()
+                        if len(lockers) == 0:
+                            return {"message": "Failed to reserve, no available lockers"}
+                        locker = encontrar_locker_mas_pequeno(height,width,depth,lockers)
+                        if locker is None:
                             return {"message": "Failed to confirm, no available lockers"}
                         else:
-                            sql_query = text(f"UPDATE locker SET state = 1 WHERE id = {lockers[0]}")
+                            sql_query = text(f"UPDATE locker SET state = 1 WHERE id = {locker[0]}")
                             db.execute(sql_query)
                             db.commit()
-                            sql_query = text(f"UPDATE reservation SET locker_id = {lockers[0]}, locker_personal_id = {lockers[1]}, station_id = {lockers[7]} WHERE id = {reservation}")
+                            sql_query = text(f"UPDATE reservation SET locker_id = {locker[0]}, locker_personal_id = {locker[1]}, station_id = {locker[7]} WHERE id = {reservation}")
                             db.execute(sql_query)
                             db.commit()
-                            sql_query = text(f"INSERT INTO states (locker_id, state) VALUES ({lockers[0]}, 1)")
+                            sql_query = text(f"INSERT INTO states (locker_id, state) VALUES ({locker[0]}, 1)")
                             db.execute(sql_query)
                             db.commit()
-                            mqtt.publish("g1/reserve", {"nickname":lockers[1],"state":0}) #publishing mqtt topic
+                            mqtt.publish("g1/reserve", {"nickname":locker[1],"state":0}) #publishing mqtt topic
                             mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
 
-                            return {"message": f"Package re-assigned to locker {lockers[0]}"}
+                            return {"message": f"Package re-assigned to locker {locker[0]}"}
 
         except Exception as e:
             return {"message": f"Error: {e}"}
@@ -556,7 +537,7 @@ async def load(reservation: int,code: str, db: dp_dependecy):
             if reserva is None:
                 return {"message": "Failed to confirm, reservation does not exist"}
             else:
-                sql_query = text(f'SELECT * FROM locker WHERE id = {reserva[2]}')
+                sql_query = text(f'SELECT * FROM locker WHERE id = {reserva[3]}')
                 result = db.execute(sql_query)
                 locker = result.fetchone()
                 if locker is None:
@@ -611,7 +592,7 @@ async def load(reservation: int,code: str, db: dp_dependecy):
             if reserva is None:
                 return {"message": "Failed to confirm, reservation does not exist"}
             else:
-                sql_query = text(f'SELECT * FROM locker WHERE id = {reserva[2]}')
+                sql_query = text(f'SELECT * FROM locker WHERE id = {reserva[3]}')
                 result = db.execute(sql_query)
                 locker = result.fetchone()
                 if locker is None:
