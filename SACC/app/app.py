@@ -15,6 +15,30 @@ from send_email import send_email_async
 from datetime import datetime
 from fastapi_mqtt.fastmqtt import FastMQTT
 from fastapi_mqtt.config import MQTTConfig
+import json
+locker_state = {
+    "station_id": "G1", 
+    "lockers": [
+    {
+        "nickname": "1",
+        "state": 0,
+        "is_open": False,
+        "is_empty": True,
+    },
+    {
+        "nickname": "2",
+        "state": 0,
+        "is_open": False,
+        "is_empty": True,
+    },
+    {
+        "nickname": "3",
+        "state": 0,
+        "is_open": False,
+        "is_empty": True,
+    }
+    ]
+}
 
 
 def get_db():
@@ -63,11 +87,11 @@ def load_initial_data(db: Session):
         db.commit()
         
     if not db.query(models.User).count():
-        db_user = models.User(name="operario1", email="oper1@example.com", typeUser="operario")
+        db_user = models.User(name="operario1", email="mati.munoz.314@gmail.com", typeUser="operario")
         db.add(db_user)
         db_user = models.User(name="operario2", email="oper2@example.com", typeUser="operario")
         db.add(db_user)
-        db_user = models.User(name="cliente1", email="client1@example.com", typeUser="cliente")
+        db_user = models.User(name="cliente1", email="mamunoz11@miuandes.cl", typeUser="cliente")
         db.add(db_user)
         db_user = models.User(name="cliente2", email="client2@example.com", typeUser="cliente")
         db.add(db_user)
@@ -206,9 +230,12 @@ async def message(client, topic, payload, qos, properties):
     print("Received message: ",topic, payload.decode(), qos, properties)
     return 0
 
-@mqtt.subscribe("/test1")
+@mqtt.subscribe("g1/physical_verification")
 async def message_to_topic(client, topic, payload, qos, properties):
     print("Received message to specific topic: ", topic, payload.decode(), qos, properties)
+    print(payload.decode())
+    global locker_state
+    locker_state = json.loads(payload.decode())
 
 @mqtt.on_disconnect()
 def disconnect(client, packet, exc=None):
@@ -283,9 +310,20 @@ async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: i
                 sql_query = text(f"INSERT INTO states (locker_id, state) VALUES ({locker}, 1)")
                 db.execute(sql_query)
                 db.commit()
+                sql_query = text(f'SELECT * FROM "locker" WHERE id = {locker}')
+                result = db.execute(sql_query)
+                locker_personal = result.fetchone()
                 
                 # ACA DEBERIA DE MANDAR EL CORREO Y TAMBIEN MANDAR UN MQTT CON QUE EL ESTADO DE ESE LOCKER 
                 #PASA A 1 -> RESERVADO
+                #TODO hacer esto dinamico para la estaciona asignada pipipi
+                print("no llegue")
+                print(locker)
+                mqtt.publish("g1/reserve", {"nickname":f"{locker_personal[1]}","state":"1"}) #publishing mqtt topic
+                print("QUE TA PASANDO")
+                mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
+
+
                 return {"message": "Reservation successful", "locker_id": locker, "station_id": station_by_locker_id(db, locker)[0], "code": clave}
         except Exception as e:
             return {"message": f"Error: {e}"}
@@ -322,11 +360,14 @@ async def confirm_reservation(reservation: int, db: dp_dependecy):
                     #TODO va a entregar y el mqtt cambiar el estado del cajon especifico a reservado
                     
 
+                    mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
 
 
                     return {"message": f"Time passed since reservation: {time_difference}"}
                 else:
                     #TODO cambiar mqtt a disponible si esto pasa cajon, 0
+                    # mqtt.publish("g1/reserve", {"nickname":locker[1],"state":0}) #publishing mqtt topic
+                    
                     return {"message": f"Failed to confirm reservation, locker is not reserved, it is {estados_generales[locker_obtenido[2]]} "}
         except Exception as e:
             return {"message": f"Error: {e}"}
@@ -351,6 +392,9 @@ async def cancel_reservation(reservation: int, db: dp_dependecy): #TODO NUMERO D
                     sql_query = text(f"UPDATE locker SET state = 0 WHERE id = {locker_obtenido[0]}")
                     db.execute(sql_query)
                     db.commit()
+                    sql_query = text(f"UPDATE locker SET code = NULL WHERE id = {locker_obtenido[0]}")
+                    db.execute(sql_query)
+                    db.commit()
                     sql_query = text(f"UPDATE reservation SET estado = 'cancelada' WHERE reservation.id = {reservation}")
                     db.execute(sql_query)
                     db.commit()
@@ -358,6 +402,8 @@ async def cancel_reservation(reservation: int, db: dp_dependecy): #TODO NUMERO D
                     db.execute(sql_query)
                     db.commit()
                     #TODO Cambiar cajon a disponible con el mqtt
+                    mqtt.publish("g1/reserve", {"nickname":locker_obtenido[1],"state":0}) #publishing mqtt topic
+                    mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
 
 
 
@@ -431,11 +477,13 @@ async def confirm(height: int, width: int, depth: int, reservation: int, db: dp_
                         result = db.execute(sql_query)
                         operario = result.fetchone()
                         await send_email_async('Entregar Product',f'{operario[2]}',
-                                f"Debes entregar en la Estacion G1 el paquete con reservacion {reservation} con el codigo: {locker[6]}")
+                                f"Debes entregar en la Estacion G1 en el espacio {locker[1]} el paquete con reservacion {reservation} con el codigo: {locker[6]}")
                         return {"message": "Package confirmed"}
                     else:
                         sql_query = text(f"UPDATE locker SET state = 0 WHERE id = {locker[0]}")
                         #TODO mandar mqtt para cambiar el estado del locker a disponible
+                        mqtt.publish("g1/reserve", {"nickname":locker[1],"state":0}) #publishing mqtt topic
+                        
                         db.execute(sql_query)
                         db.commit()
                         sql_query = text(f"UPDATE reservation SET estado = 'cancelada' WHERE reservation.id = {reservation}")
@@ -460,6 +508,9 @@ async def confirm(height: int, width: int, depth: int, reservation: int, db: dp_
                             sql_query = text(f"INSERT INTO states (locker_id, state) VALUES ({lockers[0]}, 1)")
                             db.execute(sql_query)
                             db.commit()
+                            mqtt.publish("g1/reserve", {"nickname":lockers[1],"state":0}) #publishing mqtt topic
+                            mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
+
                             return {"message": f"Package re-assigned to locker {lockers[0]}"}
 
         except Exception as e:
@@ -522,6 +573,8 @@ async def load(reservation: int,code: str, db: dp_dependecy):
                     db.commit()
                     print(locker[6])
                     #TODO aca debo hacer la llamada MQTT para abrir el cajon
+                    mqtt.publish("g1/load", {"nickname":locker[1]}) #publishing mqtt topic
+
                     sql_query = text(f'SELECT * FROM "user" WHERE id = {reserva[1]}')
                     result = db.execute(sql_query)
                     user = result.fetchone()
@@ -535,7 +588,8 @@ async def load(reservation: int,code: str, db: dp_dependecy):
                     result = db.execute(sql_query)
                     cliente = result.fetchone()
                     await send_email_async('Retirar producto',f'{cliente[2]}',
-                            f"Debes retirar en la Estacion G1 el paquete con reservacion {reservation} con el codigo: {clave}")
+                            f"Debes retirar en la Estacion G1 en el espacio {locker[1]} el paquete con reservacion {reservation} con el codigo: {clave}")
+                    mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
 
 
 
@@ -572,12 +626,15 @@ async def load(reservation: int,code: str, db: dp_dependecy):
                     sql_query = text(f"UPDATE locker SET state = 0 WHERE id = {locker[0]}")
                     db.execute(sql_query)
                     db.commit()
-                    sql_query = text(f"UPDATE reservation SET estado = finalizada WHERE id = {reservation}")
+                    sql_query = text(f"UPDATE reservation SET estado = 'finalizada' WHERE id = {reservation}")
                     db.execute(sql_query)
                     db.commit()
                     
                     print(locker[6])
                     #TODO aca debo hacer la llamada MQTT para abrir el cajon
+                    mqtt.publish("g1/unload", {"nickname":locker[1]}) #publishing mqtt topic
+
+                    mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
 
                    
                     sql_query = text(f"UPDATE locker SET code = NULL WHERE locker.id = {locker[0]}")
@@ -594,22 +651,8 @@ async def load(reservation: int,code: str, db: dp_dependecy):
         return {"message": "Timeout error"}
 
 
-@app.get('/send-email/asynchronous', tags = ["TEST_MAILER"])
-async def send_email_asynchronous():
-    await send_email_async('Hello World','mamunoz11@miuandes.cl',
-    {'title': 'Hello World', 'name': 'John Doe'})
-    return 'Success'
 
-@app.get("/test",tags=["TEST"])
-async def test(db:dp_dependecy):
-    sql_query = text(f'SELECT * FROM "user" WHERE id={1}')
-    result = db.execute(sql_query)
-    operario = result.fetchone()
-    print(operario[2])
-    return "lol"
-# 7 del pdf
-
+@app.get("/Physical_verification",tags=["PHYSICAL"])
 async def func():
-    mqtt.publish("/test1", "Hello from Fastapi") #publishing mqtt topic
-
-    return {"result": True,"message":"Published" }
+    global locker_state
+    return {"result": True,"message":locker_state }
