@@ -56,3 +56,15 @@ class States(Base):
     id = Column(Integer, primary_key=True, index=True)
     locker_id = Column(Integer, ForeignKey("locker.id"))
     state = Column(Integer)
+    
+class Historial(Base):
+    __tablename__ = "historial"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    reservation_id = Column(Integer, ForeignKey("reservation.id"))
+    user_id = Column(Integer, ForeignKey("user.id"))
+    locker_id = Column(Integer, ForeignKey("locker.id"))
+    station_id = Column(Integer, ForeignKey("station.id"))
+    fecha = Column(DateTime)
+    order_id = Column(Integer, ForeignKey("order.id"))
+    accion = Column(String)
