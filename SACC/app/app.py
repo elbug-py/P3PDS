@@ -21,6 +21,19 @@ from fastapi.templating import Jinja2Templates
 templates = Jinja2Templates(directory="templates")
 MQTT = False
 
+def generar_clave_alfanumerica(longitud=12):
+    """
+    Genera una clave alfanumérica aleatoria.
+
+    Args:
+    - longitud (int): Longitud de la clave. Por defecto, 12.
+
+    Returns:
+    - str: Clave alfanumérica generada.
+    """
+    caracteres = string.ascii_letters + string.digits  # Letras (mayúsculas y minúsculas) y dígitos
+    clave_generada = ''.join(random.choice(caracteres) for _ in range(longitud))
+    return clave_generada
 
 locker_state = {
     "station_id": "G1", 
@@ -102,13 +115,13 @@ def load_initial_data(db: Session):
         # db.commit()
         
     if not db.query(models.User).count():
-        db_user = models.User(name="operario1", email="mati.munoz.314@gmail.com", typeUser="operario")
+        db_user = models.User(name="operario1", token=generar_clave_alfanumerica())
         db.add(db_user)
-        db_user = models.User(name="operario2", email="oper2@example.com", typeUser="operario")
+        db_user = models.User(name="operario2", token=generar_clave_alfanumerica())
         db.add(db_user)
-        db_user = models.User(name="cliente1", email="mamunoz11@miuandes.cl", typeUser="cliente")
+        db_user = models.User(name="cliente1", token=generar_clave_alfanumerica())
         db.add(db_user)
-        db_user = models.User(name="cliente2", email="client2@example.com", typeUser="cliente")
+        db_user = models.User(name="cliente2", token=generar_clave_alfanumerica())
         db.add(db_user)
         db.commit()
 
@@ -182,20 +195,6 @@ def encontrar_locker_mas_pequeno(alto_paquete, ancho_paquete, profundidad_paquet
         if alto_paquete <= i[3] and ancho_paquete <= i[4] and profundidad_paquete <= i[5]:
             return i
     return None
-
-def generar_clave_alfanumerica(longitud=12):
-    """
-    Genera una clave alfanumérica aleatoria.
-
-    Args:
-    - longitud (int): Longitud de la clave. Por defecto, 12.
-
-    Returns:
-    - str: Clave alfanumérica generada.
-    """
-    caracteres = string.ascii_letters + string.digits  # Letras (mayúsculas y minúsculas) y dígitos
-    clave_generada = ''.join(random.choice(caracteres) for _ in range(longitud))
-    return clave_generada
 
 app = FastAPI()
 if MQTT:

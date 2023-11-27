@@ -31,8 +31,9 @@ class Order(BaseModel):
     
 class User(BaseModel):
     name: str
-    email: str
-    typeUser: str
+    token: str
+    timeForPickup: int
+    
     
 class Reservation(BaseModel):
     user: List[User]
