@@ -35,8 +35,9 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
-    email = Column(String, unique=True, index=True)
-    typeUser = Column(String)
+    token = Column(String)
+    timeForPickup = Column(DateTime)
+    
     
 class Reservation(Base):
     __tablename__ = "reservation"
