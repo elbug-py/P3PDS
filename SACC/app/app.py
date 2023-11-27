@@ -18,7 +18,7 @@ from fastapi_mqtt.config import MQTTConfig
 import json
 from fastapi.templating import Jinja2Templates
 
-templates = Jinja2Templates(directory="SACC/templates")
+templates = Jinja2Templates(directory="templates")
 MQTT = False
 
 
@@ -216,7 +216,7 @@ mqtt_config = MQTTConfig(
     ssl=True,
     keepalive=60,
     username="M0ki1",
-    password="1331Mati??",
+    password="",
 )
 mqtt = FastMQTT(config=mqtt_config)
 mqtt.init_app(app)
