@@ -54,10 +54,10 @@ def load_initial_data(db: Session):
         # Si está vacía, cargar datos
         db_station = models.Station(address="G1", id=1)
         db.add(db_station)
-        db_station = models.Station(address="G3", id=2)
-        db.add(db_station)
-        db_station = models.Station(address="G5", id=3)
-        db.add(db_station)
+        # db_station = models.Station(address="G3", id=2)
+        # db.add(db_station)
+        # db_station = models.Station(address="G5", id=3)
+        # db.add(db_station)
         db.commit()
 
     # Verificar si la tabla Locker está vacía
@@ -71,20 +71,20 @@ def load_initial_data(db: Session):
         db.add(db_locker)
         db.commit()
         
-        db_locker = models.Locker(state=0, height=20, width=50, depth=25, station_id=2, id=4, personal_id=1)
-        db.add(db_locker)
-        db_locker = models.Locker(state=0, height=20, width=60, depth=25, station_id=2, id=5, personal_id=2)
-        db.add(db_locker)
-        db_locker = models.Locker(state=0, height=20, width=30, depth=25, station_id=2, id=6, personal_id=3)
-        db.add(db_locker)
-        db.commit()
-        db_locker = models.Locker(state=0, height=30, width=30, depth=30, station_id=3, id=7, personal_id=1)
-        db.add(db_locker)
-        db_locker = models.Locker(state=0, height=30, width=40, depth=30, station_id=3, id=8, personal_id=2)
-        db.add(db_locker)
-        db_locker = models.Locker(state=0, height=20, width=50, depth=30, station_id=3, id=9, personal_id=3)
-        db.add(db_locker)
-        db.commit()
+        # db_locker = models.Locker(state=0, height=20, width=50, depth=25, station_id=2, id=4, personal_id=1)
+        # db.add(db_locker)
+        # db_locker = models.Locker(state=0, height=20, width=60, depth=25, station_id=2, id=5, personal_id=2)
+        # db.add(db_locker)
+        # db_locker = models.Locker(state=0, height=20, width=30, depth=25, station_id=2, id=6, personal_id=3)
+        # db.add(db_locker)
+        # db.commit()
+        # db_locker = models.Locker(state=0, height=30, width=30, depth=30, station_id=3, id=7, personal_id=1)
+        # db.add(db_locker)
+        # db_locker = models.Locker(state=0, height=30, width=40, depth=30, station_id=3, id=8, personal_id=2)
+        # db.add(db_locker)
+        # db_locker = models.Locker(state=0, height=20, width=50, depth=30, station_id=3, id=9, personal_id=3)
+        # db.add(db_locker)
+        # db.commit()
         
     if not db.query(models.User).count():
         db_user = models.User(name="operario1", email="mati.munoz.314@gmail.com", typeUser="operario")
@@ -185,7 +185,7 @@ mqtt_config = MQTTConfig(
     ssl=True,
     keepalive=60,
     username="M0ki1",
-    password="",
+    password="1331Mati??",
 )
 mqtt = FastMQTT(config=mqtt_config)
 mqtt.init_app(app)
