@@ -1,12 +1,14 @@
 import uvicorn
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from pydantic import BaseModel
 from typing import List, Annotated
 import models
 from database import engine, SessionLocal
 from sqlalchemy.orm import Session
 from datetime import datetime
+from fastapi.templating import Jinja2Templates
 
+templates = Jinja2Templates(directory="templates")
 
 
 class Station(BaseModel):
@@ -45,6 +47,17 @@ class States(BaseModel):
     id: int
     locker_id: List[Locker]
     state: int
+    
+class Historial(BaseModel):
+    reservation_id: List[Reservation]
+    user_id: List[User]
+    locker_id: List[Locker]
+    station_id: List[Station]
+    fecha: datetime
+    order: List[Order]
+    accion: str
+    
+
 
 
 if __name__=="__main__":
