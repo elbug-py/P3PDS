@@ -1,4 +1,4 @@
-import os
+# main.py -- put your code here!import os
 import time
 import ujson
 import machine
@@ -6,6 +6,8 @@ import esp32
 import random
 import usocket as socket
 from machine import Pin, PWM  
+from umqtt.simple import MQTTClient
+
 
 class Servo:
     # these defaults work for the standard TowerPro SG90
@@ -50,7 +52,31 @@ class Servo:
         self.__angle_conversion_factor = (self.__max_u10_duty - self.__min_u10_duty) / (self.max_angle - self.min_angle)
         self.__motor = PWM(Pin(pin))
         self.__motor.freq(self.__servo_pwm_freq)
-        
+
+def mqtt_connect(client_id, endpoint, ssl_params):
+    mqtt = MQTTClient(
+        client_id=client_id,
+        server=endpoint,
+        ssl_params=ssl_params,
+        port=0,
+        keepalive=4000,
+        ssl=True,
+        user=b"M0ki1",
+        password=b"1331Mati??",
+
+    )
+    print('Connecting to HiveMQ...')
+    mqtt.connect()
+    print('Done')
+    return mqtt
+      
+def mqtt_publish(client, topic, message=''):
+    print('Publishing message...')
+    client.publish(topic, message)
+    print(message)
+
+
+
 #Asignando pines a los servos
 motor1 = Servo(pin=14)
 motor2 = Servo(pin=12)
@@ -59,7 +85,7 @@ motor3 = Servo(pin=27)
 #Asignadno pines a los sensores infrarrojos
 pin_sensor_IR_1 = machine.Pin(25, machine.Pin.IN)
 pin_sensor_IR_2 = machine.Pin(32, machine.Pin.IN)
-pin_sensor_IR_3 = machine.Pin(33, machine.Pin.IN)
+pin_sensor_IR_3 = machine.Pin(26, machine.Pin.IN)
 
 #Asignando pines a magneticos (solo 1 para la EP2)
 pin_sensor_magnetico_1 = machine.Pin(15, machine.Pin.IN, machine.Pin.PULL_UP)
@@ -82,6 +108,29 @@ time.sleep(0.25)
 motor3.move(120)
 time.sleep(0.25)
 
+general_states= {
+    "station_id": "G1", 
+    "lockers": [
+    {
+        "nickname": "1",
+        "state": 0,
+        "is_open": False,
+        "is_empty": True,
+    },
+    {
+        "nickname": "2",
+        "state": 0,
+        "is_open": False,
+        "is_empty": True,
+    },
+    {
+        "nickname": "3",
+        "state": 0,
+        "is_open": False,
+        "is_empty": True,
+    }
+    ]
+}
 
 def leer_sensor_IR(locker_id):
     time.sleep(0.25)
@@ -94,8 +143,11 @@ def leer_sensor_IR(locker_id):
     time.sleep(0.25)
     print(f"Locker {locker_id} - IR: {estado}")
     if estado == 0:
+        general_states["lockers"][locker_id-1]["is_empty"] = True
         return True
     else:
+        general_states["lockers"][locker_id-1]["is_empty"] = False
+
         return False
     
 def mover_servo(locker_id, angulo):
@@ -111,21 +163,12 @@ def mover_servo(locker_id, angulo):
     time.sleep(0.25)
 
 def verificacion_fisica():
-    dict_lockers = {}
     for i in range(1,4):
-        lleno = leer_sensor_IR(i)
-        if lleno:
-            dict_lockers[i] = True
-        else:
-            dict_lockers[i] = False
-    estados = ujson.dumps(dict_lockers)
-    response = f"HTTP/1.1 200 OK\r\n"
-    response += f"Content-Type: application/json\r\n\r\n"
-    response += "Acces-Control-Allow-Origin: *\r\n\r\n"
-    response += "{"
-    response += f"'message': {estados}"
-    response += "}"
-    return response
+        leer_sensor_IR(i)
+
+    estados = ujson.dumps(general_states)
+    mqtt_publish(client=mqtt,message=estados,topic="g1/physical_verification")
+    #ACA MANDAMOS EL ESTADO
 
 def leer_sensor_magentico(locker_id):
     time.sleep(0.25)
@@ -138,8 +181,10 @@ def leer_sensor_magentico(locker_id):
     print(f"Locker {locker_id} - Magnetico: {estado}")
     time.sleep(0.25) 
     if estado == 0:
+        general_states["lockers"][locker_id-1]["is_open"] = False
         return True
     else:
+        general_states["lockers"][locker_id-1]["is_open"] = True
         return False
 
 def esperar_cierre(locker_id):
@@ -164,6 +209,7 @@ def esperar_infrarrojo(locker_id, modo):
         if modo == "cargar":
             if lectura:
                 print("Paquete Cargado")
+                general_states["lockers"][locker_id-1]["state"] = 3
                 print("")
                 break
             else:
@@ -172,6 +218,7 @@ def esperar_infrarrojo(locker_id, modo):
         elif modo == "retirar":
             if not lectura:
                 print("Paquete Retirado")
+                general_states["lockers"][locker_id-1]["state"] = 0
                 print("")
                 break
             else:
@@ -185,67 +232,54 @@ def abrir_locker(locker_id, modo):
     esperar_infrarrojo(locker_id, modo)
     esperar_cierre(locker_id)
     mover_servo(locker_id, 120)
-    print(f"Locker {locker_id} cerrado")
-    response = f"HTTP/1.1 200 OK\r\n"
-    response += f"Content-Type: application/json\r\n\r\n"
-    response += "Acces-Control-Allow-Origin: *\r\n\r\n"
-    response += "{'message': 'Abierto en mode l}"
-    return response    
+    print(f"Locker {locker_id} cerrado") 
 
-def handle_post_request(client, content):
-    print(content)
-    json_data = ujson.loads(content)
-    print(json_data)
-    try:
-        json_data = ujson.loads(content)
-        accion = json_data.get("accion")
-        casillero = int(json_data.get("casillero"))
-        if str(accion) == "verificacion":
+
+#ESte seria nuestro verificador de mensajes  
+
+def mqtt_subscribe(topic,msg):
+    print("LLEGO CARTAAA")
+    message = ujson.loads(msg)
+    print('Message received...')
+    topico = topic.decode("utf-8")
+    accion= (topico.split("/"))[-1]
+    casillero= int(message["nickname"])
+    print(message)
+    if accion == "verification":
             response = verificacion_fisica()
-        elif str(accion) == "cargar":
-            response = abrir_locker(casillero, "cargar")
-        elif str(accion) == "retirar":
-            response = abrir_locker(casillero, "retirar")
-        else: 
-            response = "HTTP/1.1 400 Bad Request\r\n\r\nAccion no reconocida"
-    except ValueError as e:
-        response = f"HTTP/1.1 400 Bad Request\r\n\r\nError al analizar JSON. se recibió {content}"
-        print(e)
-    client.send(response)
-    client.close()
+    elif accion == "load":
+        response = abrir_locker(casillero, "cargar")
+    elif accion == "unload":
+        response = abrir_locker(casillero, "retirar")
+    elif accion == "reserve":
+        incoming_state = int(message["state"])
+        general_states["lockers"][casillero-1]["state"] = incoming_state
+    else:
+        print("ACCION NO RECONOCIDA")
+    estados = ujson.dumps(general_states)
 
+    mqtt_publish(client=mqtt,message=estados,topic="g1/physical_verification")
+    
+    
 # MAIN
+mqtt = mqtt_connect(CLIENT_ID, SERVER, SSL_PARAMS)
+mqtt.set_callback(mqtt_subscribe)
+mqtt.subscribe("g1/verification")
+mqtt.subscribe("g1/load")
+mqtt.subscribe("g1/unload")
+mqtt.subscribe("g1/reserve")
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind(('0.0.0.0', 80))
-s.listen(5)
+#Aca tenemos que subscribirnos a los distintos topicos
 
-print("Esperando solicitudes...")
 
 while True:
-    time.sleep(1)
-    hora_actual = time.localtime()
-    print(f"Esperando solicitud a las")
     try:
-        client, addr = s.accept()
-    except Exception as error:
-        print(error)
-        continue
-    try:
-        request = client.recv(1024)
-        end_of_headers = request.find(b'\r\n\r\n') + 4
-        content = request[end_of_headers:].decode('utf-8')
-        if b"POST" in request and b"Content-Length" in request:
-            handle_post_request(client, content)
-        else: # GET
-            response = "HTTP/1.1 200 OK\r\n\r\nHola desde ESP32"
-            client.send(response)
-            client.close()
-    except Exception as e:
+        mqtt.check_msg()
+    except Exception as e: 
         print(e)
-        print("Cliente desconectado por error")
-        pass
-    finally:
-        client.close()
+        print('Unable to check for messages.')
+    print("WAITING 2 SECS")
+    time.sleep(2)
+
 
 

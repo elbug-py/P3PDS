@@ -31,7 +31,7 @@ conf = ConnectionConfig(
     MAIL_SSL_TLS = False,
     USE_CREDENTIALS = True,
     VALIDATE_CERTS = True,
-    TEMPLATE_FOLDER="SACC/templates"
+    TEMPLATE_FOLDER="templates"
 )
 async def send_email_async(subject: str, email_to: str, body: dict):
     message = MessageSchema(
