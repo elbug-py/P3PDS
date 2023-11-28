@@ -12,7 +12,7 @@ import random
 import string
 import os
 from send_email import send_email_async
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi_mqtt.fastmqtt import FastMQTT
 from fastapi_mqtt.config import MQTTConfig
 import json
@@ -196,11 +196,26 @@ def encontrar_locker_mas_pequeno(alto_paquete, ancho_paquete, profundidad_paquet
             return i
     return None
 
-def revisar_reservas_expiradas(db: Session):
+def revisar_reservas_expiradas(db: Session, max_hours: int = 24):
     sql_query = text(f"SELECT * FROM reservation WHERE estado = 'activa'")
     result = db.execute(sql_query)
     reservas = result.fetchall()
-    
+    for reserva in reservas:
+        if datetime.now() - reserva[6] > timedelta(hours=max_hours):
+            create_record(db, reserva[0], reserva[1], reserva[3], reserva[5], datetime.now(), reserva[2], "Reserva expirada, estado cambia a cancelada")
+            sql_query = text(f"UPDATE reservation SET estado = 'cancelada' WHERE id = {reserva[0]}")
+            db.execute(sql_query)
+            db.commit()
+            sql_query = text(f"SELECT * FROM locker WHERE id = {reserva[3]}")
+            result = db.execute(sql_query)
+            locker_obtenido = result.fetchone()
+            if locker_obtenido[2] == 1:
+                sql_query = text(f"UPDATE locker SET state = 0 WHERE id = {locker_obtenido[0]}")
+                db.execute(sql_query)
+                db.commit()
+                sql_query = text(f"UPDATE locker SET code = NULL WHERE id = {locker_obtenido[0]}")
+                db.execute(sql_query)
+                db.commit()
     
 
 app = FastAPI()
@@ -271,6 +286,7 @@ if MQTT:
 async def get_available_lockers(db: dp_dependecy):
     try:
         try:
+            revisar_reservas_expiradas(db)
             lockers = all_lockers(db)
             data = {}
             for i in lockers:
@@ -295,6 +311,7 @@ async def get_available_lockers(db: dp_dependecy):
 async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: int, user_id: int, db: dp_dependecy):
     try:
         try:
+            revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM locker WHERE state = 0")
             result = db.execute(sql_query)
             lockers = result.fetchall()
@@ -357,6 +374,7 @@ async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: i
 async def confirm_reservation(reservation: int, db: dp_dependecy):
     try:
         try:
+            revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -404,6 +422,7 @@ async def confirm_reservation(reservation: int, db: dp_dependecy):
 async def cancel_reservation(reservation: int, db: dp_dependecy): #TODO NUMERO DE CAJON
     try:
         try:
+            revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -451,6 +470,7 @@ async def reservation_state(reservation: int, db: dp_dependecy):
     data = []
     try:
         try:
+            revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             locker_id = result.fetchone()[3]
@@ -482,6 +502,7 @@ async def reservation_state(reservation: int, db: dp_dependecy):
 async def confirm(height: int, width: int, depth: int, reservation: int, db: dp_dependecy):
     try:
         try:
+            revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -558,6 +579,7 @@ async def confirm(height: int, width: int, depth: int, reservation: int, db: dp_
 async def ready(reservation: int, db: dp_dependecy):
     try:
         try:
+            revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -583,6 +605,7 @@ async def ready(reservation: int, db: dp_dependecy):
 async def load(reservation: int,code: str, db: dp_dependecy):
     try:
         try:
+            revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -641,6 +664,7 @@ async def load(reservation: int,code: str, db: dp_dependecy):
 async def load(reservation: int,code: str, db: dp_dependecy):
     try:
         try:
+            revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -696,7 +720,8 @@ async def func():
 
 
 @app.get("/")
-async def name(request: Request, db: dp_dependecy):
+async def home(request: Request, db: dp_dependecy):
+    revisar_reservas_expiradas(db)
     return templates.TemplateResponse("home.html", {"request": request})
 
 
