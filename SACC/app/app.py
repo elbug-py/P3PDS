@@ -209,16 +209,16 @@ if MQTT:
     mqtt = FastMQTT(config=mqtt_config)
     mqtt.init_app(app)
 
-mqtt_config = MQTTConfig(
-    host="ab34c5b092fc416db7e2f21aa7d38514.s1.eu.hivemq.cloud",
-    port=8883,
-    ssl=True,
-    keepalive=60,
-    username="M0ki1",
-    password="",
-)
-mqtt = FastMQTT(config=mqtt_config)
-mqtt.init_app(app)
+    mqtt_config = MQTTConfig(
+        host="ab34c5b092fc416db7e2f21aa7d38514.s1.eu.hivemq.cloud",
+        port=8883,
+        ssl=True,
+        keepalive=60,
+        username="M0ki1",
+        password="",
+    )
+    mqtt = FastMQTT(config=mqtt_config)
+    mqtt.init_app(app)
 
 estados_generales = {
     0: "available",
