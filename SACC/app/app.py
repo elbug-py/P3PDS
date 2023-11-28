@@ -36,37 +36,62 @@ def generar_clave_alfanumerica(longitud=12):
     return clave_generada
 
 locker_state = {
-    "station_id": "G1", 
-    "lockers": [
-    {
-        "nickname": "1",
-        "state": 0,
-        "is_open": False,
-        "is_empty": True,
-    },
-    {
-        "nickname": "2",
-        "state": 0,
-        "is_open": False,
-        "is_empty": True,
-    },
-    {
-        "nickname": "3",
-        "state": 0,
-        "is_open": False,
-        "is_empty": True,
-    }
+    "stations": [
+        {
+            "station_id": "G1",
+            "lockers": [
+                {
+                    "nickname": "1",
+                    "state": 0,
+                    "is_open": False,
+                    "is_empty": True,
+                },
+                {
+                    "nickname": "2",
+                    "state": 0,
+                    "is_open": False,
+                    "is_empty": True,
+                },
+                {
+                    "nickname": "3",
+                    "state": 0,
+                    "is_open": False,
+                    "is_empty": True,
+                }
+            ]
+        },
+        {
+            "station_id": "G3",
+            "lockers": [
+                {
+                    "nickname": "1",
+                    "state": 0,
+                    "is_open": False,
+                    "is_empty": True,
+                },
+                {
+                    "nickname": "2",
+                    "state": 0,
+                    "is_open": False,
+                    "is_empty": True,
+                },
+                {
+                    "nickname": "3",
+                    "state": 0,
+                    "is_open": False,
+                    "is_empty": True,
+                }
+            ]
+        }
     ]
 }
 
-# def get_comparisson_locker_state(db_state, locker_id, locker_state=locker_state):
-#     for locker in locker_state["lockers"]:
-#         if locker["nickname"] == str(locker_id):
-#             if locker["state"] == db_state:
-#                 return True
-#             else:
-#                 return False
-#     return False
+
+def get_comparisson_locker_state(virtual_locker_state, pyhsical_locker_state):
+    if str(virtual_locker_state) == str(pyhsical_locker_state):
+        return "STATUS OK"
+    else:
+        return "STATUS WITH DIFFERENCES"
 
 
 def get_db():
@@ -140,10 +165,21 @@ if rellenar:
 
 timeout_seconds = 10
 
-def create_record(db: Session, reservation_id: int, user_id: int, locker_id: int, station_id: int, fecha: datetime, order_id: int, accion: str):
-    db_historial = models.Historial(reservation_id=reservation_id, user_id=user_id, locker_id=locker_id, station_id=station_id, fecha=fecha, order_id=order_id, accion=accion)
+def create_record(db: Session, reservation_id: int, user_id: int, locker_id: int, station_id: int, fecha: datetime, order_id: int, accion: str, email: str = None):
+    if email is not None:
+        db_historial = models.Historial(reservation_id=reservation_id, user_id=user_id, locker_id=locker_id, station_id=station_id, fecha=fecha, order_id=order_id, accion=accion, email=email)
+    else:
+        db_historial = models.Historial(reservation_id=reservation_id, user_id=user_id, locker_id=locker_id, station_id=station_id, fecha=fecha, order_id=order_id, accion=accion)
     db.add(db_historial)
     db.commit()
+
+def get_locker_from_global_states(personal_id: int, station_name: str, locker_state=locker_state):
+    for station in locker_state["stations"]:
+        if station["station_id"] == station_name:
+            for locker in station["lockers"]:
+                if locker["nickname"] == str(personal_id):
+                    return locker["state"]
+    return None
 
 def get_all_locker_from_station(db: Session, station_id: int):
     sql_query = text(f"SELECT * FROM locker WHERE station_id = {station_id}")
@@ -265,6 +301,7 @@ if MQTT:
         print("Received message: ",topic, payload.decode(), qos, properties)
         return 0
 
+    #! CHECK WHEN CHANGING THE TOPIC SUBSCRIBING TO ADAPT THE NEW MULTI STATION
     @mqtt.subscribe("g1/physical_verification")
     async def message_to_topic(client, topic, payload, qos, properties):
         print("Received message to specific topic: ", topic, payload.decode(), qos, properties)
@@ -732,20 +769,24 @@ async def estado_casilleros(request: Request, db: dp_dependecy):
     lockers = result.fetchall()
     dic = {}
     dic_aux = {}
+    stations = all_stations(db)
+    station_dic = {}
+    for station in stations:
+        station_dic[station[0]] = station[1]
     for cont, locker in enumerate(lockers):
         if cont == len(lockers)-1:
-            dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6]}
+            dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6], "Status_fisico": get_state_by_state_number(get_locker_from_global_states(locker[1], station_dic[locker[7]])), "comparacion": get_comparisson_locker_state(locker[2], get_locker_from_global_states(locker[1], station_dic[locker[7]]))}
             dic[locker[7]] = dic_aux
             break
         if cont == 0:
-            dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6]}
+            dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6], "Status_fisico": get_state_by_state_number(get_locker_from_global_states(locker[1], station_dic[locker[7]])), "comparacion": get_comparisson_locker_state(locker[2], get_locker_from_global_states(locker[1], station_dic[locker[7]]))}
             continue
         if locker[7] != lockers[cont+1][7]:
-            dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6]}
+            dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6], "Status_fisico": get_state_by_state_number(get_locker_from_global_states(locker[1], station_dic[locker[7]])), "comparacion": get_comparisson_locker_state(locker[2], get_locker_from_global_states(locker[1], station_dic[locker[7]]))}
             dic[locker[7]] = dic_aux
             dic_aux = {}
         else:
-            dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6]}
+            dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6], "Status_fisico": get_state_by_state_number(get_locker_from_global_states(locker[1], station_dic[locker[7]])), "comparacion": get_comparisson_locker_state(locker[2], get_locker_from_global_states(locker[1], station_dic[locker[7]]))}
  
     return templates.TemplateResponse("estado_casilleros.html", {"request": request, "saccs": dic})
 

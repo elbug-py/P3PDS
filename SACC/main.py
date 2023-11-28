@@ -58,6 +58,7 @@ class Historial(BaseModel):
     fecha: datetime
     order: List[Order]
     accion: str
+    email: str
     
 
 
