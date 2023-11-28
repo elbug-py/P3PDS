@@ -196,6 +196,12 @@ def encontrar_locker_mas_pequeno(alto_paquete, ancho_paquete, profundidad_paquet
             return i
     return None
 
+# def revisar_reservas_expiradas(db: Session):
+#     sql_query = text(f"SELECT * FROM reservation WHERE estado = 'activa'")
+#     result = db.execute(sql_query)
+#     reservas = result.fetchall()
+    
+
 app = FastAPI()
 if MQTT:
     mqtt_config = MQTTConfig(
