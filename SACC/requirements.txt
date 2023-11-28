@@ -1,5 +1,8 @@
 fastapi==0.104.1
-pydantic==2.4.2
+fastapi_mail==1.4.1
+fastapi_mqtt==2.0.0
+pydantic==2.5.2
+python-dotenv==1.0.0
 Requests==2.31.0
 SQLAlchemy==2.0.23
 uvicorn==0.24.0.post1
