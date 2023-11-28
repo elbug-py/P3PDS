@@ -7,6 +7,7 @@ from database import engine, SessionLocal
 from sqlalchemy.orm import Session
 from datetime import datetime
 from fastapi.templating import Jinja2Templates
+import os
 
 templates = Jinja2Templates(directory="templates")
 
@@ -63,7 +64,7 @@ class Historial(BaseModel):
 
 if __name__=="__main__":
     models.Base.metadata.create_all(bind=engine)
-    uvicorn.run("app.app:app",port=8000, reload=True)
-":"
+    # uvicorn.run("app.app:app",port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=os.getenv("PORT", default=5000), log_level="info", reload=True)
 
 
