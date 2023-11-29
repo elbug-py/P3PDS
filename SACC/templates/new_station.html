@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>Nueva Estación</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    </head>
+    <body>
+        {% include 'header.html'%}
+        <h4 class="text-center mb-4">Añadir Estación</h4>
+        <div class="container w-75">
+            <form id="lockerForm" class="my-3" method="POST" action="/accion_nueva_estacion/">
+                
+                Estacion
+                <div class="mb-3">
+                    <label for="nameInput" class="form-label">Nombre Estación</label>
+                    <input type="text" class="form-control" id="nameInput" name="nameInput" required>
+                </div>
+                <div class="mb-3">
+                    <label for="addressInput" class="form-label">Dirección Estación</label>
+                    <input type="text" class="form-control" id="addressInput" name="addressInput" required>
+                </div>
+            
+                <div id="lockersAll">
+                    <div id="lockerContainer" class="locker-container mb-3">
+                        <div id="lockerCount">
+                            Locker 1
+                        </div>
+                        <div class="mb-3 locker">
+                            <label for="nicknameInput" class="form-label">Nickname del locker</label>
+                            <input type="text" class="form-control" id="nicknameInput[]" name="nicknameInput[]" required>
+                        </div>
+                        <div class="row">
+                            <div class="col">
+                                <label for="heightInput" class="form-label">Alto [cm]</label>
+                                <input type="number" class="form-control" id="heightInput[]" name="heightInput[]" required>
+                            </div>
+                            <div class="col">
+                                <label for="widthInput" class="form-label">Ancho [cm]</label>
+                                <input type="number" class="form-control" id="widthInput[]" name="widthInput[]" required>
+                            </div>
+                            <div class="col">
+                                <label for="depthInput" class="form-label">Profundidad [cm]</label>
+                                <input type="number" class="form-control" name="depthInput[]" id="depthInput[]" required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            
+                <button type="button" class="btn btn-primary" onclick="addLocker()">Añadir Otro Locker</button>
+                <button type="button" class="btn btn-primary" onclick="enviarFormulario()">Crear</button>
+            </form>
+        </div>
+        {% include 'footer.html'%}
+    </body>
+</html>
+<script>
+    var lockerCount = 1;
+
+    function addLocker() {
+        // Clona el nodo del contenedor de lockers
+        var lockerContainer = document.getElementById('lockerContainer');
+        var newLockerContainer = lockerContainer.cloneNode(true);
+
+        // Incrementa el contador de lockers y actualiza el texto
+        lockerCount++;
+        newLockerContainer.querySelector('#lockerCount').textContent = 'Lockers ' + lockerCount;
+
+        // Agrega el nuevo contenedor de lockers al formulario
+        document.getElementById('lockersAll').appendChild(newLockerContainer);
+    }
+    function enviarFormulario() {
+        if (!document.getElementById('lockerForm').checkValidity()) {
+            // El formulario no es válido, no realizar la solicitud
+            document.getElementById('lockerForm').reportValidity();
+            console.error('Formulario no válido');
+            return;
+        }
+        // Obtener los datos del formulario
+        var formData = new FormData(document.getElementById('lockerForm'));
+    
+        // Estructurar los datos para que coincidan con el formato esperado en el controlador FastAPI
+        var data = {};
+        data["modo"] = "new";
+        formData.forEach(function(value, key){
+            // Eliminar los corchetes de la clave
+            var cleanKey = key.replace('[]', '');
+            
+            // Tratar nameInput y addressInput de manera diferente
+            if (cleanKey === 'nameInput' || cleanKey === 'addressInput') {
+                data[cleanKey] = value;
+            } else {
+                if (data[cleanKey]) {
+                    // Si ya existe una entrada con esta clave, conviértela en una lista y agrega el nuevo valor
+                    if (!Array.isArray(data[cleanKey])) {
+                        data[cleanKey] = [data[cleanKey]];
+                    }
+                    data[cleanKey].push(value);
+                } else {
+                    // Si no existe una entrada con esta clave, simplemente establece el valor
+                    data[cleanKey] = [value];  // Siempre trata como lista
+                }
+            }
+        });
+    
+        // Realizar la solicitud POST usando fetch
+        fetch('/accion_nueva_estacion', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',  // Cambiado a 'application/json'
+            },
+            body: JSON.stringify(data),  // Convertir datos a formato JSON
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Manejar la respuesta del servidor
+            console.log(data);
+        })
+        .catch(error => {
+            console.error('Error al enviar la solicitud:', error);
+        });
+    }
+    
+    
+
+    
+</script>
+
+

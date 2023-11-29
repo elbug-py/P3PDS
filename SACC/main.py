@@ -9,10 +9,11 @@ from datetime import datetime
 from fastapi.templating import Jinja2Templates
 import os
 
-templates = Jinja2Templates(directory="sacc/templates")
+templates = Jinja2Templates(directory="templates")
 
 
 class Station(BaseModel):
+    name: str
     address: str
     
 class Locker(BaseModel):

@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException, Depends,BackgroundTasks, Request
+from fastapi import FastAPI, HTTPException, Depends,BackgroundTasks, Request, Form
 import requests
 import models
 from database import engine, SessionLocal
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from typing import Annotated
+from typing import Annotated, List
 import json
 from itertools import permutations
 from enum import Enum
@@ -19,7 +19,7 @@ import json
 from fastapi.templating import Jinja2Templates
 
 
-templates = Jinja2Templates(directory="sacc/templates")
+templates = Jinja2Templates(directory="templates")
 MQTT = False
 
 
@@ -40,48 +40,29 @@ def generar_clave_alfanumerica(longitud=12):
 locker_state = {
     "stations": [
         {
-            "station_id": "G1",
+            "station_name": "G1",
+            "address": "Universidad de los Andes",
             "lockers": [
                 {
                     "nickname": "1",
                     "state": 0,
                     "is_open": False,
                     "is_empty": True,
+                    "size": "20x20x40"
                 },
                 {
                     "nickname": "2",
                     "state": 0,
                     "is_open": False,
                     "is_empty": True,
+                    "size": "20x30x40"
                 },
                 {
                     "nickname": "3",
                     "state": 0,
                     "is_open": False,
                     "is_empty": True,
-                }
-            ]
-        },
-        {
-            "station_id": "G3",
-            "lockers": [
-                {
-                    "nickname": "1",
-                    "state": 0,
-                    "is_open": False,
-                    "is_empty": True,
-                },
-                {
-                    "nickname": "2",
-                    "state": 0,
-                    "is_open": False,
-                    "is_empty": True,
-                },
-                {
-                    "nickname": "3",
-                    "state": 0,
-                    "is_open": False,
-                    "is_empty": True,
+                    "size": "20x40x40"
                 }
             ]
         }
@@ -107,7 +88,7 @@ def load_initial_data(db: Session):
     # Verificar si la tabla Station está vacía
     if not db.query(models.Station).count():
         # Si está vacía, cargar datos
-        db_station = models.Station(address="G1", id=1)
+        db_station = models.Station(name="G1", address="direccion prueba")
         db.add(db_station)
         # db_station = models.Station(address="G3", id=2)
         # db.add(db_station)
@@ -118,26 +99,26 @@ def load_initial_data(db: Session):
     # Verificar si la tabla Locker está vacía
     if not db.query(models.Locker).count():
         # Si está vacía, cargar datos
-        db_locker = models.Locker(state=0, height=20, width=40, depth=20, station_id=1, id=1, personal_id=1)
+        db_locker = models.Locker(state=0, height=20, width=40, depth=20, station_id=1, personal_id=1)
         db.add(db_locker)
-        db_locker = models.Locker(state=0, height=30, width=40, depth=20, station_id=1, id=2, personal_id=2)
+        db_locker = models.Locker(state=0, height=30, width=40, depth=20, station_id=1, personal_id=2)
         db.add(db_locker)
-        db_locker = models.Locker(state=0, height=40, width=40, depth=20, station_id=1, id=3, personal_id=3)
+        db_locker = models.Locker(state=0, height=40, width=40, depth=20, station_id=1, personal_id=3)
         db.add(db_locker)
         db.commit()
         
-        # db_locker = models.Locker(state=0, height=20, width=50, depth=25, station_id=2, id=4, personal_id=1)
+        # db_locker = models.Locker(state=0, height=20, width=50, depth=25, station_id=2, personal_id=1)
         # db.add(db_locker)
-        # db_locker = models.Locker(state=0, height=20, width=60, depth=25, station_id=2, id=5, personal_id=2)
+        # db_locker = models.Locker(state=0, height=20, width=60, depth=25, station_id=2, personal_id=2)
         # db.add(db_locker)
-        # db_locker = models.Locker(state=0, height=20, width=30, depth=25, station_id=2, id=6, personal_id=3)
+        # db_locker = models.Locker(state=0, height=20, width=30, depth=25, station_id=2, personal_id=3)
         # db.add(db_locker)
         # db.commit()
-        # db_locker = models.Locker(state=0, height=30, width=30, depth=30, station_id=3, id=7, personal_id=1)
+        # db_locker = models.Locker(state=0, height=30, width=30, depth=30, station_id=3, personal_id=1)
         # db.add(db_locker)
-        # db_locker = models.Locker(state=0, height=30, width=40, depth=30, station_id=3, id=8, personal_id=2)
+        # db_locker = models.Locker(state=0, height=30, width=40, depth=30, station_id=3, personal_id=2)
         # db.add(db_locker)
-        # db_locker = models.Locker(state=0, height=20, width=50, depth=30, station_id=3, id=9, personal_id=3)
+        # db_locker = models.Locker(state=0, height=20, width=50, depth=30, station_id=3, personal_id=3)
         # db.add(db_locker)
         # db.commit()
         
@@ -175,9 +156,9 @@ def create_record(db: Session, reservation_id: int, user_id: int, locker_id: int
     db.add(db_historial)
     db.commit()
 
-def get_locker_from_global_states(personal_id: int, station_name: str, locker_state=locker_state):
+def get_locker_from_global_states(personal_id: int, station_name: str):
     for station in locker_state["stations"]:
-        if station["station_id"] == station_name:
+        if station["station_name"] == station_name:
             for locker in station["lockers"]:
                 if locker["nickname"] == str(personal_id):
                     return locker["state"]
@@ -279,7 +260,7 @@ estados_generales = {
 }
 
 def get_state_by_state_number(state_number, estados_generales=estados_generales):
-    return estados_generales[state_number]
+    return estados_generales[int(state_number)]
     
 
 if MQTT:
@@ -805,6 +786,7 @@ async def home(request: Request, db: dp_dependecy):
 
 @app.get('/estado_casilleros/')
 async def estado_casilleros(request: Request, db: dp_dependecy):
+    print(locker_state)
     sql_query = text(f"SELECT * FROM locker")
     result = db.execute(sql_query)
     lockers = result.fetchall()
@@ -817,14 +799,14 @@ async def estado_casilleros(request: Request, db: dp_dependecy):
     for cont, locker in enumerate(lockers):
         if cont == len(lockers)-1:
             dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6], "Status_fisico": get_state_by_state_number(get_locker_from_global_states(locker[1], station_dic[locker[7]])), "comparacion": get_comparisson_locker_state(locker[2], get_locker_from_global_states(locker[1], station_dic[locker[7]]))}
-            dic[locker[7]] = dic_aux
+            dic[station_dic[locker[7]]] = dic_aux
             break
         if cont == 0:
             dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6], "Status_fisico": get_state_by_state_number(get_locker_from_global_states(locker[1], station_dic[locker[7]])), "comparacion": get_comparisson_locker_state(locker[2], get_locker_from_global_states(locker[1], station_dic[locker[7]]))}
             continue
         if locker[7] != lockers[cont+1][7]:
             dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6], "Status_fisico": get_state_by_state_number(get_locker_from_global_states(locker[1], station_dic[locker[7]])), "comparacion": get_comparisson_locker_state(locker[2], get_locker_from_global_states(locker[1], station_dic[locker[7]]))}
-            dic[locker[7]] = dic_aux
+            dic[station_dic[locker[7]]] = dic_aux
             dic_aux = {}
         else:
             dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6], "Status_fisico": get_state_by_state_number(get_locker_from_global_states(locker[1], station_dic[locker[7]])), "comparacion": get_comparisson_locker_state(locker[2], get_locker_from_global_states(locker[1], station_dic[locker[7]]))}
@@ -873,3 +855,67 @@ async def create_e_commerce(name:str,password:str,db: dp_dependecy):
             return {"result": False,"message":"Ha ocurrido un error" }
 
 
+@app.get('/new_station/')
+async def new_station(request: Request, db: dp_dependecy):
+    
+    return templates.TemplateResponse("new_station.html", {"request": request})
+
+from pydantic import BaseModel
+class LockerData(BaseModel):
+    nameInput: str
+    addressInput: str
+    nicknameInput: List[str]
+    heightInput: List[float]
+    widthInput: List[float]
+    depthInput: List[float]
+    modo: str
+    
+@app.post("/accion_nueva_estacion/")
+async def process_form(request: Request, db: dp_dependecy, data: LockerData):
+    if data.modo == "new":
+        locker_state["stations"].append({"station_name":data.nameInput,"nickname":data.addressInput,"lockers":[]})
+        db_station = models.Station(name=data.nameInput, address=data.addressInput)
+        db.add(db_station)
+        db.commit()
+        sql_query = text(f"SELECT * FROM station WHERE name = '{data.nameInput}'")
+        station_id = db.execute(sql_query).fetchone()[0]
+        for locker in zip(data.nicknameInput, data.heightInput, data.widthInput, data.depthInput):
+            db_locker = models.Locker(personal_id=locker[0], state=0, height=locker[1], width=locker[2], depth=locker[3], station_id=station_id)
+            db.add(db_locker)
+            db.commit()
+            locker_state["stations"][-1]["lockers"].append({"nickname":locker[0],"state":0, "is_open":False, "is_empty":True, "size":f"{locker[1]}x{locker[2]}x{locker[3]}"})
+        
+    elif data.modo == "edit":
+        print(data)
+    return {"message": "Datos recibidos correctamente"}
+
+
+@app.get('/ecommerce/')
+async def ecommerce(request: Request, db: dp_dependecy):
+    
+    return templates.TemplateResponse("ecommerce.html", {"request": request})
+
+@app.get('/ecommerces/')
+async def ecommerce(request: Request, db: dp_dependecy):
+    
+    return templates.TemplateResponse("ecommerce.html", {"request": request})
+    
+# @app.post("/accion_nueva_estacion/")
+# async def process_form(request: Request, db: dp_dependecy, data: LockerData):
+#     if data.modo == "new":
+#         db_station = models.Station(name=data.nameInput, address=data.addressInput)
+#         db.add(db_station)
+#         db.commit()
+#         # sql_query = text(f"INSERT INTO station (name, address) VALUES ('{data.nameInput}', '{data.addressInput}')")
+#         # db.execute(sql_query)
+#         # db.commit()
+#         sql_query = text(f"SELECT * FROM station WHERE name = '{data.nameInput}'")
+#         station_id = db.execute(sql_query).fetchone()[0]
+#         for locker in zip(data.nicknameInput, data.heightInput, data.widthInput, data.depthInput):
+#             sql_query = text(f"INSERT INTO locker (personal_id, state, height, width, depth, station_id) VALUES ('{locker[0]}', {0}, {locker[1]}, {locker[2]}, {locker[3]}, {station_id})")
+#             db.execute(sql_query)
+#             db.commit()
+#         # locker_state[station_id] = [0 for i in range(len(data.nicknameInput))]
+#     elif data.modo == "edit":
+#         print(data)
+#     return {"message": "Datos recibidos correctamente"}
