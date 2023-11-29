@@ -9,7 +9,7 @@ from datetime import datetime
 from fastapi.templating import Jinja2Templates
 import os
 
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="sacc/templates")
 
 
 class Station(BaseModel):
@@ -45,6 +45,7 @@ class Reservation(BaseModel):
     station: List[Station]
     fecha: datetime
     estado: str #activa, cancelada, finalizada
+    user_id: List[User]
 
 class States(BaseModel):
     id: int
