@@ -2,10 +2,10 @@
 import network
 import machine
 
-WIFI_SSID = 'POCO X3 Pro'
-WIFI_PASSWORD = 'Aa.55778'
+WIFI_SSID = 'wifi-campus'
+WIFI_PASSWORD = 'uandes2200'
 
-SERVER = 'ab34c5b092fc416db7e2f21aa7d38514.s1.eu.hivemq.cloud'
+SERVER = 'b691d2e8433d49499db17af66c771b55.s1.eu.hivemq.cloud'
 CLIENT_ID = 'BICHOTA_CAJON'
 
 
@@ -29,6 +29,6 @@ if not wlan.isconnected():
 
 
 
-SSL_PARAMS = {"server_hostname":"ab34c5b092fc416db7e2f21aa7d38514.s1.eu.hivemq.cloud"}
+SSL_PARAMS = {"server_hostname":"b691d2e8433d49499db17af66c771b55.s1.eu.hivemq.cloud"}
 
 
