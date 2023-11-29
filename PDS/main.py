@@ -61,8 +61,8 @@ def mqtt_connect(client_id, endpoint, ssl_params):
         port=0,
         keepalive=4000,
         ssl=True,
-        user=b"M0ki1",
-        password=b"1331Mati??",
+        user=b"MQTTeam",
+        password=b"AWShaters123",
 
     )
     print('Connecting to HiveMQ...')
@@ -173,7 +173,7 @@ def verificacion_fisica():
 
     estados = ujson.dumps(general_states)
     #TODO change this to make it cohesivly 
-    mqtt_publish(client=mqtt,message=estados,topic="g1/physical_verification")
+    mqtt_publish(client=mqtt,message=estados,topic="status")
     #ACA MANDAMOS EL ESTADO
 
 def leer_sensor_magentico(locker_id):
@@ -188,9 +188,14 @@ def leer_sensor_magentico(locker_id):
     time.sleep(0.25) 
     if estado == 0:
         general_states["lockers"][locker_id-1]["is_open"] = False
+        estados = ujson.dumps(general_states)
+        mqtt_publish(client=mqtt,message=estados,topic="status")
+
         return True
     else:
         general_states["lockers"][locker_id-1]["is_open"] = True
+        estados = ujson.dumps(general_states)
+        mqtt_publish(client=mqtt,message=estados,topic="status")
         return False
 
 def esperar_cierre(locker_id):
@@ -216,6 +221,8 @@ def esperar_infrarrojo(locker_id, modo):
             if lectura:
                 print("Paquete Cargado")
                 general_states["lockers"][locker_id-1]["state"] = 3
+                estados = ujson.dumps(general_states)
+                mqtt_publish(client=mqtt,message=estados,topic="status")
                 print("")
                 break
             else:
@@ -225,6 +232,8 @@ def esperar_infrarrojo(locker_id, modo):
             if not lectura:
                 print("Paquete Retirado")
                 general_states["lockers"][locker_id-1]["state"] = 0
+                estados = ujson.dumps(general_states)
+                mqtt_publish(client=mqtt,message=estados,topic="status")
                 print("")
                 break
             else:
@@ -253,41 +262,49 @@ def mqtt_subscribe(topic,msg):
 
     topico = topic.decode("utf-8")
     # accion= (topico.split("/"))[-1]
+    estacion = message['station_name']
+    if estacion != 'G1':
+        return None
     accion = topico
-
+    print(accion)
     casillero= int(message["nickname"])
     print(message)
     # if accion == "verification":
     #         response = verificacion_fisica()
-    if accion == "LOAD":
+    if accion == "load":
         response = abrir_locker(casillero, "cargar")
-    elif accion == "UNLOAD":
+    elif accion == "unload":
         response = abrir_locker(casillero, "retirar")
 
     else:
         print("ACCION NO RECONOCIDA")
     estados = ujson.dumps(general_states)
     #TODO change this in function of the agreement
-    mqtt_publish(client=mqtt,message=estados,topic="g1/physical_verification")
+    mqtt_publish(client=mqtt,message=estados,topic="status")
     
     
 # MAIN
 mqtt = mqtt_connect(CLIENT_ID, SERVER, SSL_PARAMS)
 mqtt.set_callback(mqtt_subscribe)
-mqtt.subscribe("LOAD")
-mqtt.subscribe("UNLOAD")
+mqtt.subscribe("load")
+mqtt.subscribe("unload")
 
 #Aca tenemos que subscribirnos a los distintos topicos
-
+x = 0
 
 while True:
     try:
         mqtt.check_msg()
+        if x == 15:
+            estados = ujson.dumps(general_states)
+            mqtt_publish(client=mqtt,message=estados,topic="status")
+            x = 0
     except Exception as e: 
         print(e)
         print('Unable to check for messages.')
-    print("WAITING 2 SECS")
-    time.sleep(2)
+    # print("WAITING 5 SECS")
+    time.sleep(1)
+    x+=1
 
 
 
