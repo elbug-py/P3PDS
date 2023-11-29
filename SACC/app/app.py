@@ -19,7 +19,7 @@ import json
 from fastapi.templating import Jinja2Templates
 
 
-templates = Jinja2Templates(directory="sacc/templates")
+templates = Jinja2Templates(directory="templates")
 MQTT = False
 
 
@@ -171,16 +171,16 @@ def load_initial_data(db: Session):
         db.commit()
 
     if not db.query(models.Reservation).count():
-        db_reservation = models.Reservation(user_id=3, order_id=1, locker_id=1, locker_personal_id=1, station_id=1, fecha=datetime.now(), estado="activa")
+        db_reservation = models.Reservation(client_email="cliente1", order_id=1, locker_id=1, locker_personal_id=1, station_id=1, fecha=datetime.now(), estado="activa", user_id=1)
         db.add(db_reservation)
         db.commit()
 
     if not db.query(models.Historial).count():
-        db_historial = models.Historial(reservation_id=3, user_id=1, locker_id=1, station_id=1, fecha=datetime.now(), order_id=1, accion="creacion reserva")
+        db_historial = models.Historial(reservation_id=1, user_id=1, locker_id=1, station_id=1, fecha=datetime.now(), order_id=1, accion="creacion reserva")
         db.add(db_historial)
-        db_historial = models.Historial(reservation_id=3, user_id=1, locker_id=2, station_id=1, fecha=datetime.now(), order_id=1, accion="reserva confirmada, medidas correctas")
+        db_historial = models.Historial(reservation_id=1, user_id=1, locker_id=2, station_id=1, fecha=datetime.now(), order_id=1, accion="reserva confirmada, medidas correctas")
         db.add(db_historial)
-        db_historial = models.Historial(reservation_id=3, user_id=1, locker_id=3, station_id=1, fecha=datetime.now(), order_id=1, accion="Listo para retirar")
+        db_historial = models.Historial(reservation_id=1, user_id=1, locker_id=3, station_id=1, fecha=datetime.now(), order_id=1, accion="Listo para retirar")
         db.add(db_historial)
         db.commit()
     
