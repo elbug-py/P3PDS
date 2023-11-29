@@ -71,3 +71,4 @@ class Historial(Base):
     fecha = Column(DateTime)
     order_id = Column(Integer, ForeignKey("order.id"))
     accion = Column(String)
+    email = Column(String)

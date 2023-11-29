@@ -12,7 +12,7 @@ import random
 import string
 import os
 from send_email import send_email_async
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi_mqtt.fastmqtt import FastMQTT
 from fastapi_mqtt.config import MQTTConfig
 import json
@@ -36,37 +36,62 @@ def generar_clave_alfanumerica(longitud=12):
     return clave_generada
 
 locker_state = {
-    "station_id": "G1", 
-    "lockers": [
-    {
-        "nickname": "1",
-        "state": 0,
-        "is_open": False,
-        "is_empty": True,
-    },
-    {
-        "nickname": "2",
-        "state": 0,
-        "is_open": False,
-        "is_empty": True,
-    },
-    {
-        "nickname": "3",
-        "state": 0,
-        "is_open": False,
-        "is_empty": True,
-    }
+    "stations": [
+        {
+            "station_id": "G1",
+            "lockers": [
+                {
+                    "nickname": "1",
+                    "state": 0,
+                    "is_open": False,
+                    "is_empty": True,
+                },
+                {
+                    "nickname": "2",
+                    "state": 0,
+                    "is_open": False,
+                    "is_empty": True,
+                },
+                {
+                    "nickname": "3",
+                    "state": 0,
+                    "is_open": False,
+                    "is_empty": True,
+                }
+            ]
+        },
+        {
+            "station_id": "G3",
+            "lockers": [
+                {
+                    "nickname": "1",
+                    "state": 0,
+                    "is_open": False,
+                    "is_empty": True,
+                },
+                {
+                    "nickname": "2",
+                    "state": 0,
+                    "is_open": False,
+                    "is_empty": True,
+                },
+                {
+                    "nickname": "3",
+                    "state": 0,
+                    "is_open": False,
+                    "is_empty": True,
+                }
+            ]
+        }
     ]
 }
 
-# def get_comparisson_locker_state(db_state, locker_id, locker_state=locker_state):
-#     for locker in locker_state["lockers"]:
-#         if locker["nickname"] == str(locker_id):
-#             if locker["state"] == db_state:
-#                 return True
-#             else:
-#                 return False
-#     return False
+
+def get_comparisson_locker_state(virtual_locker_state, pyhsical_locker_state):
+    if str(virtual_locker_state) == str(pyhsical_locker_state):
+        return "STATUS OK"
+    else:
+        return "STATUS WITH DIFFERENCES"
 
 
 def get_db():
@@ -140,10 +165,21 @@ if rellenar:
 
 timeout_seconds = 10
 
-def create_record(db: Session, reservation_id: int, client_email: string, locker_id: int, station_id: int, fecha: datetime, order_id: int, accion: str):
-    db_historial = models.Historial(reservation_id=reservation_id, client_email=client_email, locker_id=locker_id, station_id=station_id, fecha=fecha, order_id=order_id, accion=accion)
+def create_record(db: Session, reservation_id: int, user_id: int, locker_id: int, station_id: int, fecha: datetime, order_id: int, accion: str, email: str = None):
+    if email is not None:
+        db_historial = models.Historial(reservation_id=reservation_id, user_id=user_id, locker_id=locker_id, station_id=station_id, fecha=fecha, order_id=order_id, accion=accion, email=email)
+    else:
+        db_historial = models.Historial(reservation_id=reservation_id, user_id=user_id, locker_id=locker_id, station_id=station_id, fecha=fecha, order_id=order_id, accion=accion)
     db.add(db_historial)
     db.commit()
+
+def get_locker_from_global_states(personal_id: int, station_name: str, locker_state=locker_state):
+    for station in locker_state["stations"]:
+        if station["station_id"] == station_name:
+            for locker in station["lockers"]:
+                if locker["nickname"] == str(personal_id):
+                    return locker["state"]
+    return None
 
 def get_all_locker_from_station(db: Session, station_id: int):
     sql_query = text(f"SELECT * FROM locker WHERE station_id = {station_id}")
@@ -196,6 +232,28 @@ def encontrar_locker_mas_pequeno(alto_paquete, ancho_paquete, profundidad_paquet
             return i
     return None
 
+def revisar_reservas_expiradas(db: Session, max_hours: int = 24):
+    sql_query = text(f"SELECT * FROM reservation WHERE estado = 'activa'")
+    result = db.execute(sql_query)
+    reservas = result.fetchall()
+    for reserva in reservas:
+        if datetime.now() - reserva[6] > timedelta(hours=max_hours):
+            create_record(db, reserva[0], reserva[1], reserva[3], reserva[5], datetime.now(), reserva[2], "Reserva expirada, estado cambia a cancelada")
+            sql_query = text(f"UPDATE reservation SET estado = 'cancelada' WHERE id = {reserva[0]}")
+            db.execute(sql_query)
+            db.commit()
+            sql_query = text(f"SELECT * FROM locker WHERE id = {reserva[3]}")
+            result = db.execute(sql_query)
+            locker_obtenido = result.fetchone()
+            if locker_obtenido[2] == 1:
+                sql_query = text(f"UPDATE locker SET state = 0 WHERE id = {locker_obtenido[0]}")
+                db.execute(sql_query)
+                db.commit()
+                sql_query = text(f"UPDATE locker SET code = NULL WHERE id = {locker_obtenido[0]}")
+                db.execute(sql_query)
+                db.commit()
+    
+
 app = FastAPI()
 if MQTT:
 
@@ -233,6 +291,8 @@ if MQTT:
         print("Received message: ",topic, payload.decode(), qos, properties)
         return 0
     #TODO change this in function of the actual topic
+
+    #! CHECK WHEN CHANGING THE TOPIC SUBSCRIBING TO ADAPT THE NEW MULTI STATION
     @mqtt.subscribe("g1/physical_verification")
     async def message_to_topic(client, topic, payload, qos, properties):
         print("Received message to specific topic: ", topic, payload.decode(), qos, properties)
@@ -254,6 +314,7 @@ if MQTT:
 async def get_available_lockers(db: dp_dependecy):
     try:
         try:
+            revisar_reservas_expiradas(db)
             lockers = all_lockers(db)
             data = {}
             for i in lockers:
@@ -278,6 +339,7 @@ async def get_available_lockers(db: dp_dependecy):
 async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: int, client_email: str, db: dp_dependecy):
     try:
         try:
+            revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM locker WHERE state = 0")
             result = db.execute(sql_query)
             lockers = result.fetchall()
@@ -345,6 +407,7 @@ async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: i
 async def confirm_reservation(reservation: int, db: dp_dependecy):
     try:
         try:
+            revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -392,6 +455,7 @@ async def confirm_reservation(reservation: int, db: dp_dependecy):
 async def cancel_reservation(reservation: int, db: dp_dependecy): #TODO NUMERO DE CAJON
     try:
         try:
+            revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -441,6 +505,7 @@ async def reservation_state(reservation: int, db: dp_dependecy):
     data = []
     try:
         try:
+            revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             locker_id = result.fetchone()[3]
@@ -472,6 +537,7 @@ async def reservation_state(reservation: int, db: dp_dependecy):
 async def confirm(height: int, width: int, depth: int, reservation: int, operator_email: str, db: dp_dependecy):
     try:
         try:
+            revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -547,6 +613,7 @@ async def confirm(height: int, width: int, depth: int, reservation: int, operato
 async def ready(reservation: int, db: dp_dependecy):
     try:
         try:
+            revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -572,6 +639,7 @@ async def ready(reservation: int, db: dp_dependecy):
 async def load(reservation: int,code: str, db: dp_dependecy):
     try:
         try:
+            revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -634,6 +702,7 @@ async def load(reservation: int,code: str, db: dp_dependecy):
 async def load(reservation: int,code: str, db: dp_dependecy):
     try:
         try:
+            revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -692,7 +761,8 @@ async def func():
 
 
 @app.get("/")
-async def name(request: Request, db: dp_dependecy):
+async def home(request: Request, db: dp_dependecy):
+    revisar_reservas_expiradas(db)
     return templates.TemplateResponse("home.html", {"request": request})
 
 
@@ -703,20 +773,24 @@ async def estado_casilleros(request: Request, db: dp_dependecy):
     lockers = result.fetchall()
     dic = {}
     dic_aux = {}
+    stations = all_stations(db)
+    station_dic = {}
+    for station in stations:
+        station_dic[station[0]] = station[1]
     for cont, locker in enumerate(lockers):
         if cont == len(lockers)-1:
-            dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6]}
+            dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6], "Status_fisico": get_state_by_state_number(get_locker_from_global_states(locker[1], station_dic[locker[7]])), "comparacion": get_comparisson_locker_state(locker[2], get_locker_from_global_states(locker[1], station_dic[locker[7]]))}
             dic[locker[7]] = dic_aux
             break
         if cont == 0:
-            dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6]}
+            dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6], "Status_fisico": get_state_by_state_number(get_locker_from_global_states(locker[1], station_dic[locker[7]])), "comparacion": get_comparisson_locker_state(locker[2], get_locker_from_global_states(locker[1], station_dic[locker[7]]))}
             continue
         if locker[7] != lockers[cont+1][7]:
-            dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6]}
+            dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6], "Status_fisico": get_state_by_state_number(get_locker_from_global_states(locker[1], station_dic[locker[7]])), "comparacion": get_comparisson_locker_state(locker[2], get_locker_from_global_states(locker[1], station_dic[locker[7]]))}
             dic[locker[7]] = dic_aux
             dic_aux = {}
         else:
-            dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6]}
+            dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6], "Status_fisico": get_state_by_state_number(get_locker_from_global_states(locker[1], station_dic[locker[7]])), "comparacion": get_comparisson_locker_state(locker[2], get_locker_from_global_states(locker[1], station_dic[locker[7]]))}
  
     return templates.TemplateResponse("estado_casilleros.html", {"request": request, "saccs": dic})
 

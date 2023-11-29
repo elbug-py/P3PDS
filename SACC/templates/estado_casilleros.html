@@ -23,7 +23,9 @@
                     <thead>
                         <tr>
                             <th scope="col">ID Locker</th>
-                            <th scope="col">State</th>
+                            <th scope="col">Virtual State</th>
+                            <th scope="col">Pyhsical State</th>
+                            <th scope="col">State status</th>
                             <th scope="col">Height</th>
                             <th scope="col">Width</th>
                             <th scope="col">Depth</th>
@@ -34,11 +36,16 @@
                             <tr>
                                 <td>{{ locker_info.personal_id }}</td>
                                 <td>{{ locker_info.state }}</td>
+                                <td>{{ locker_info.Status_fisico }}</td>
+                                <td style="font-weight: 500;color: {% if locker_info.comparacion == 'STATUS WITH DIFFERENCE' %}red{% else %}green{% endif %};">
+                                    {{ locker_info.comparacion }}
+                                </td>
                                 <td>{{ locker_info.height }} cm</td>
                                 <td>{{ locker_info.width }} cm</td>
                                 <td>{{ locker_info.depth }} cm</td>
                             </tr>
                         {% endfor %}
+
                     </tbody>
                 </table>
             </div>
