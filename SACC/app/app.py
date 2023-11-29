@@ -18,8 +18,10 @@ from fastapi_mqtt.config import MQTTConfig
 import json
 from fastapi.templating import Jinja2Templates
 
-templates = Jinja2Templates(directory="templates")
-MQTT = True
+
+templates = Jinja2Templates(directory="sacc/templates")
+MQTT = False
+
 
 def generar_clave_alfanumerica(longitud=12):
     """
@@ -840,7 +842,7 @@ async def bitacora(request: Request, db: dp_dependecy, reservation_id: int = Non
         sql_query = text(f'SELECT * FROM "user" where id = {i[1]}')
         result = db.execute(sql_query)
         usuario = result.fetchone()
-        datos.append((i[0], usuario[1], i[2], i[3], i[4], i[5], i[6], i[7], usuario[3]))
+        datos.append((i[0], usuario[1], i[2], i[3], i[4], i[5], i[6], i[7], usuario[3], i[8]))
     
     return templates.TemplateResponse("bitacora.html", {"request": request, "acciones": datos})
 
