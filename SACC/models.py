@@ -43,7 +43,6 @@ class Reservation(Base):
     __tablename__ = "reservation"
     
     id = Column(Integer, primary_key=True, index=True)
-    # user_id = Column(Integer, ForeignKey("user.id"))
     client_email = Column(String)
     order_id = Column(Integer, ForeignKey("order.id"))
     locker_id = Column(Integer, ForeignKey("locker.id"))
@@ -51,6 +50,8 @@ class Reservation(Base):
     station_id = Column(Integer, ForeignKey("station.id"))
     fecha = Column(DateTime)
     estado = Column(String)
+    user_id = Column(Integer, ForeignKey("user.id"))
+
     
 class States(Base):
     __tablename__ = "states"
@@ -64,8 +65,7 @@ class Historial(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     reservation_id = Column(Integer, ForeignKey("reservation.id"))
-    # user_id = Column(Integer, ForeignKey("user.id"))
-    client_email = Column(String)
+    user_id = Column(Integer, ForeignKey("user.id"))
     locker_id = Column(Integer, ForeignKey("locker.id"))
     station_id = Column(Integer, ForeignKey("station.id"))
     fecha = Column(DateTime)
