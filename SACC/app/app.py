@@ -18,8 +18,10 @@ from fastapi_mqtt.config import MQTTConfig
 import json
 from fastapi.templating import Jinja2Templates
 
-templates = Jinja2Templates(directory="templates")
+
+templates = Jinja2Templates(directory="sacc/templates")
 MQTT = False
+
 
 def generar_clave_alfanumerica(longitud=12):
     """
@@ -281,24 +283,14 @@ def revisar_reservas_expiradas(db: Session, max_hours: int = 24):
 
 app = FastAPI()
 if MQTT:
-    mqtt_config = MQTTConfig(
-        host="ab34c5b092fc416db7e2f21aa7d38514.s1.eu.hivemq.cloud",
-        port=8883,
-        ssl=True,
-        keepalive=60,
-        username="M0ki1",
-        password="",
-    )
-    mqtt = FastMQTT(config=mqtt_config)
-    mqtt.init_app(app)
 
     mqtt_config = MQTTConfig(
-        host="ab34c5b092fc416db7e2f21aa7d38514.s1.eu.hivemq.cloud",
+        host="b691d2e8433d49499db17af66c771b55.s1.eu.hivemq.cloud",
         port=8883,
         ssl=True,
         keepalive=60,
-        username="M0ki1",
-        password="",
+        username="MQTTeam",
+        password="AWShaters123",
     )
     mqtt = FastMQTT(config=mqtt_config)
     mqtt.init_app(app)
@@ -325,14 +317,16 @@ if MQTT:
     async def message(client, topic, payload, qos, properties):
         print("Received message: ",topic, payload.decode(), qos, properties)
         return 0
+    #TODO change this in function of the actual topic
 
     #! CHECK WHEN CHANGING THE TOPIC SUBSCRIBING TO ADAPT THE NEW MULTI STATION
-    @mqtt.subscribe("g1/physical_verification")
+    @mqtt.subscribe("status")
     async def message_to_topic(client, topic, payload, qos, properties):
         print("Received message to specific topic: ", topic, payload.decode(), qos, properties)
         print(payload.decode())
         global locker_state
-        locker_state = json.loads(payload.decode())
+        # locker_state = json.loads(payload.decode())
+        # print(json.loads(payload.decode()))
 
     @mqtt.on_disconnect()
     def disconnect(client, packet, exc=None):
@@ -370,20 +364,33 @@ async def get_available_lockers(db: dp_dependecy):
 
 # del pdf es la 2
 @app.post('/reserve', tags=['RESERVAR'])
-async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: int, user_id: int, db: dp_dependecy):
+async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: int, client_email: str,token :str, db: dp_dependecy):
     try:
         try:
+            sql_query = text('SELECT * FROM "user" WHERE token = :token')
+            result = db.execute(sql_query, {'token': token})
+            print(result)
+            e_commerce = result.fetchone()
+
+            if (e_commerce) == None:
+                return {"message": "Token no valido"}
+            print(e_commerce)
+
             revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM locker WHERE state = 0")
             result = db.execute(sql_query)
             lockers = result.fetchall()
             if len(lockers) == 0:
                 return {"message": "Failed to reserve, no available lockers"}
-            sql_query = text(f'SELECT * FROM "user" WHERE id = {user_id}')
-            result = db.execute(sql_query)
-            user = result.fetchone()
-            if user is None:
-                return {"message": "Failed to reserve, user does not exist"}
+            #REMOVE this doesn't go anymore.
+            # sql_query = text(f'SELECT * FROM "user" WHERE id = {user_id}')
+            # result = db.execute(sql_query)
+            # user = result.fetchone()
+            # if user is None:
+            #     return {"message": "Failed to reserve, user does not exist"}
+            #REMOVE
+
+
             locker_encontrado = encontrar_locker_mas_pequeno(alto_paquete, ancho_paquete, profundidad_paquete, lockers)
             if locker_encontrado is None:
                 return {"message": "Failed to reserve, package is too big for available lockers"}
@@ -397,7 +404,14 @@ async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: i
                 db.execute(sql_query)
                 db.commit()
                 # Creo la reserva
-                db_reservation = models.Reservation(user_id=user_id, order_id=db_order.id, locker_id=locker_encontrado[0], locker_personal_id=get_locker_personal_id(db, locker_encontrado[0]), station_id=station_by_locker_id(db, locker_encontrado[0])[0], fecha=datetime.now(), estado="activa")
+                db_reservation = models.Reservation(client_email=client_email, 
+                                                    order_id=db_order.id, 
+                                                    locker_id=locker_encontrado[0], 
+                                                    locker_personal_id=get_locker_personal_id(db, locker_encontrado[0]), 
+                                                    station_id=station_by_locker_id(db, locker_encontrado[0])[0], 
+                                                    fecha=datetime.now(), 
+                                                    estado="activa",
+                                                    user_id=e_commerce[0])
                 db.add(db_reservation)
                 db.commit()
                 # asigno un codigo al locker
@@ -412,18 +426,19 @@ async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: i
                 sql_query = text(f'SELECT * FROM "locker" WHERE id = {locker_encontrado[0]}')
                 result = db.execute(sql_query)
                 locker_personal = result.fetchone()
-                create_record(db, db_reservation.id, user_id, locker_encontrado[0], station_by_locker_id(db, locker_encontrado[0])[0], datetime.now(), db_order.id, "creacion reserva")
-                
-                # ACA DEBERIA DE MANDAR EL CORREO Y TAMBIEN MANDAR UN MQTT CON QUE EL ESTADO DE ESE LOCKER 
-                #PASA A 1 -> RESERVADO
-                #TODO hacer esto dinamico para la estaciona asignada pipipi
-                print("no llegue")
-                print(locker_encontrado[0])
-                if MQTT:
-                    mqtt.publish("g1/reserve", {"nickname":f"{locker_personal[1]}","state":"1"}) #publishing mqtt topic
-                    print("QUE TA PASANDO")
-                    mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
+                #!This may broke for the client_email change in reserve, keep an eye in it
 
+                create_record(db, db_reservation.id, e_commerce[0], locker_encontrado[0], station_by_locker_id(db, locker_encontrado[0])[0], datetime.now(), db_order.id, "creacion reserva",client_email)
+                
+                #TODO change this to be in order with the MQTT group standars
+                #TODO agree?
+                
+                #TODO Check what the heck is doing the others with this
+                if MQTT:
+                    # mqtt.publish("g1/reserve", {"nickname":f"{locker_personal[1]}","state":"1"}) #publishing mqtt topic
+                    # print("QUE TA PASANDO")
+                    # mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
+                    pass
 
                 return {"message": "Reservation successful", "locker_id": locker_encontrado[0], "station_id": station_by_locker_id(db, locker_encontrado[0])[0], "code": clave}
         except Exception as e:
@@ -433,9 +448,16 @@ async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: i
     
 # pdf parte 3
 @app.post('/confirm_reservation', tags=['CONFIRM RESERVATION'])
-async def confirm_reservation(reservation: int, db: dp_dependecy):
+async def confirm_reservation(reservation: int,token:str, db: dp_dependecy):
     try:
         try:
+            sql_query = text('SELECT * FROM "user" WHERE token = :token')
+            result = db.execute(sql_query, {'token': token})
+            print(result)
+            e_commerce = result.fetchone()
+
+            if (e_commerce) == None:
+                return {"message": "Token no valido"}
             revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
@@ -450,32 +472,29 @@ async def confirm_reservation(reservation: int, db: dp_dependecy):
                 sql_query = text(f"SELECT * FROM locker WHERE id = {reserva[3]}")
                 result = db.execute(sql_query)
                 locker_obtenido = result.fetchone()
-                #Igual la idea aca es que si pasa mucho tiempo gg y murio la reserva por lo que
-                #Habria que borrarla de la BBDD
+              
                 if locker_obtenido[2] == 1:
-                    #Correo de que el operario debe ver esta 
-                    sql_query = text(f'SELECT * FROM "user" WHERE id={1}')
-                    result = db.execute(sql_query)
-                    operario = result.fetchone()
-
-                    try:
-                        await send_email_async('Verificar medidas',f'{operario[2]}',
-                                f"debes verificar la reserva {reservation}")
-                        create_record(db, reserva[0], reserva[1], reserva[3], reserva[5], datetime.now(), reserva[2], "No se pudo confirmar por medidas")
-                        #TODO va a entregar y el mqtt cambiar el estado del cajon especifico a reservado
-                    except Exception as e:
-                        pass
+                    #*THIS IS GOOD, THIS IS WHEN EVERYTHING GOES RIGTH
+                    #!This may broke for the client_email change in reserve, keep an eye in it
+                    create_record(db, reserva[0], e_commerce[0], reserva[3], reserva[5], datetime.now(), reserva[2], "reserva confirmada",reserva[1])
                     
-                    if MQTT:
-                        mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
+                    #TODO va a entregar y el mqtt cambiar el estado del cajon especifico a reservado
+                    
+                    # if MQTT:
+                    #     #*Always check the status so this is not going to be used
+                    #     mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
 
 
                     return {"message": f"Time passed since reservation: {time_difference}"}
                 else:
-                    #TODO cambiar mqtt a disponible si esto pasa cajon, 0
-                    create_record(db, reserva[0], reserva[1], reserva[3], reserva[5], datetime.now(), reserva[2], "reserva confirmada, medidas correctas")
+                    #!This may broke for the client_email change in reserve, keep an eye in it
+                    create_record(db, reserva[0], e_commerce[0], reserva[3], reserva[5], datetime.now(), reserva[2], "No se logro reservar",reserva[1])
+
+                    #TODO Check what the heck is doing the others with this
+                    
                     if MQTT:
-                        mqtt.publish("g1/reserve", {"nickname":locker_obtenido[1],"state":0}) #publishing mqtt topic
+                        pass
+                        # mqtt.publish("g1/reserve", {"nickname":locker_obtenido[1],"state":0}) #publishing mqtt topic
                     
                     return {"message": f"Failed to confirm reservation, locker is not reserved, it is {estados_generales[locker_obtenido[2]]} "}
         except Exception as e:
@@ -485,9 +504,16 @@ async def confirm_reservation(reservation: int, db: dp_dependecy):
     
 # del pdf es la 4
 @app.post('/cancel_reservation', tags=['CANCEL RESERVATION'])
-async def cancel_reservation(reservation: int, db: dp_dependecy): #TODO NUMERO DE CAJON
+async def cancel_reservation(reservation: int,token:str, db: dp_dependecy): #TODO NUMERO DE CAJON
     try:
         try:
+            sql_query = text('SELECT * FROM "user" WHERE token = :token')
+            result = db.execute(sql_query, {'token': token})
+            print(result)
+            e_commerce = result.fetchone()
+
+            if (e_commerce) == None:
+                return {"message": "Token no valido"}
             revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
@@ -495,7 +521,7 @@ async def cancel_reservation(reservation: int, db: dp_dependecy): #TODO NUMERO D
             if reserva is None:
                 return {"message": "Failed to cancel reservation, reservation does not exist"}
             else:
-                sql_query = text(f"SELECT * FROM locker WHERE id = {reserva[2]}")
+                sql_query = text(f"SELECT * FROM locker WHERE id = {reserva[3]}")
                 result = db.execute(sql_query)
                 locker_obtenido = result.fetchone()
                 if locker_obtenido[2] == 1:
@@ -511,12 +537,14 @@ async def cancel_reservation(reservation: int, db: dp_dependecy): #TODO NUMERO D
                     sql_query = text(f"INSERT INTO states (locker_id, state) VALUES ({locker_obtenido[0]}, 0)")
                     db.execute(sql_query)
                     db.commit()
-                    create_record(db, reserva[0], reserva[1], reserva[3], reserva[5], datetime.now(), reserva[2], "cancelacion reserva")
+                    create_record(db, reserva[0], e_commerce[0], reserva[3], reserva[5], datetime.now(), reserva[2], "cancelacion reserva",reserva[1])
                     #TODO Cambiar cajon a disponible con el mqtt
                     if MQTT:
-                        mqtt.publish("g1/reserve", {"nickname":locker_obtenido[1],"state":0}) #publishing mqtt topic
-                        mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
-
+                        #!Its seems that we are gonna delete this
+                        # #TODO change this into the agreement
+                        # mqtt.publish("g1/reserve", {"nickname":locker_obtenido[1],"state":0}) #publishing mqtt topic
+                        # mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
+                        pass
 
 
 
@@ -532,10 +560,17 @@ async def cancel_reservation(reservation: int, db: dp_dependecy): #TODO NUMERO D
 
 # del pdf es la 5
 @app.post('/reservation_state', tags=['RESERVATION STATE'])
-async def reservation_state(reservation: int, db: dp_dependecy):
+async def reservation_state(reservation: int, token:str ,db: dp_dependecy):
     data = []
     try:
         try:
+            sql_query = text('SELECT * FROM "user" WHERE token = :token')
+            result = db.execute(sql_query, {'token': token})
+            print(result)
+            e_commerce = result.fetchone()
+
+            if (e_commerce) == None:
+                return {"message": "Token no valido"}
             revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
@@ -565,9 +600,16 @@ async def reservation_state(reservation: int, db: dp_dependecy):
     
 # 6 del pdf
 @app.post('/confirm', tags=['CONFIRM'])
-async def confirm(height: int, width: int, depth: int, reservation: int, db: dp_dependecy):
+async def confirm(height: int, width: int, depth: int, reservation: int, operator_email: str,token:str, db: dp_dependecy):
     try:
         try:
+            sql_query = text('SELECT * FROM "user" WHERE token = :token')
+            result = db.execute(sql_query, {'token': token})
+            print(result)
+            e_commerce = result.fetchone()
+
+            if (e_commerce) == None:
+                return {"message": "Token no valido"}
             revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
@@ -575,7 +617,7 @@ async def confirm(height: int, width: int, depth: int, reservation: int, db: dp_
             if reserva is None:
                 return {"message": "Failed to confirm, reservation does not exist"}
             else:
-                sql_query = text(f'SELECT * FROM locker WHERE id = {reserva[2]}')
+                sql_query = text(f'SELECT * FROM locker WHERE id = {reserva[3]}')
                 result = db.execute(sql_query)
                 locker = result.fetchone()
                 if locker is None:
@@ -584,23 +626,21 @@ async def confirm(height: int, width: int, depth: int, reservation: int, db: dp_
                     #compare the dimensions of the package with the dimensions of the locker
                     if height <= locker[3] and width <= locker[4] and depth <= locker[5]:
 
-                        #TODO
-                        #Mandar correo a operario con la clave de este locker para que lo 
-                        #pueda abrir
-                        sql_query = text(f'SELECT * FROM "user" WHERE id={1}')
-                        result = db.execute(sql_query)
-                        operario = result.fetchone()
-                        try:
-                            await send_email_async('Entregar Product',f'{operario[2]}',
-                                    f"Debes entregar en la Estacion G1 en el espacio {locker[1]} el paquete con reservacion {reservation} con el codigo: {locker[6]}")
-                        except Exception as e:
-                            pass
+                        create_record(db, reserva[0], e_commerce[0], reserva[3], reserva[5], datetime.now(), reserva[2], "Medidas y reserva confirmadas",reserva[1])
+                        create_record(db, reserva[0], e_commerce[0], reserva[3], reserva[5], datetime.now(), reserva[2], f"Correo enviado al operario{operator_email}",reserva[1])
+
+                        print(locker)
+                        await send_email_async('Entregar Product',f'{operator_email}',
+                                f"Debes entregar en la Estacion G1 en el espacio {locker[1]} el paquete con reservacion {reservation} con el codigo: {locker[6]}")
                         return {"message": "Package confirmed"}
                     else:
                         sql_query = text(f"UPDATE locker SET state = 0 WHERE id = {locker[0]}")
                         #TODO mandar mqtt para cambiar el estado del locker a disponible
                         if MQTT:
-                            mqtt.publish("g1/reserve", {"nickname":locker[1],"state":0}) #publishing mqtt topic
+                            #TODO change this in function of the agreement
+                            #!So aparently we are going to delte this
+                            # mqtt.publish("g1/reserve", {"nickname":locker[1],"state":0}) #publishing mqtt topic
+                            pass
                         
                         db.execute(sql_query)
                         db.commit()
@@ -628,8 +668,9 @@ async def confirm(height: int, width: int, depth: int, reservation: int, db: dp_
                             sql_query = text(f"INSERT INTO states (locker_id, state) VALUES ({locker[0]}, 1)")
                             db.execute(sql_query)
                             db.commit()
-                            create_record(db, reserva[0], reserva[1], reserva[3], reserva[5], datetime.now(), reserva[2], "Reasignacion de locker por espacio, reserva sigue activa y confirmada")
+                            create_record(db, reserva[0], e_commerce[0], reserva[3], reserva[5], datetime.now(), reserva[2], "Reasignacion de locker por espacio, reserva sigue activa y confirmada",reserva[1])
                             if MQTT:
+                                #TODO Change this to the agree stament
                                 mqtt.publish("g1/reserve", {"nickname":locker[1],"state":0}) #publishing mqtt topic
                                 mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
 
@@ -643,37 +684,13 @@ async def confirm(height: int, width: int, depth: int, reservation: int, db: dp_
 
 
 
-# 7 del pdf
-@app.post('/ready', tags=['READY'])
-async def ready(reservation: int, db: dp_dependecy):
-    try:
-        try:
-            revisar_reservas_expiradas(db)
-            sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
-            result = db.execute(sql_query)
-            reserva = result.fetchone()
-            if reserva is None:
-                return {"message": "Failed to ready, reservation does not exist"}
-            else:
-                sql_query = text(f'SELECT * FROM "user" WHERE id = {reserva[1]}')
-                result = db.execute(sql_query)
-                user = result.fetchone()
-                if user is None:
-                    return {"message": "Failed to ready, user does not exist"}
-                else:
-                    #TODO ACA MANDAR UN CORREO AL USER
-                    create_record(db, reserva[0], reserva[1], reserva[3], reserva[5], datetime.now(), reserva[2], "Listo para retirar")
-                    return {"message": f'user {user[1]} ready to pick up package'}
-        except Exception as e:
-            return {"message": f"Error: {e}"}
-    except requests.exceptions.Timeout:
-        return {"message": "Timeout error"}
-    
+
 
 @app.post('/load', tags = ["LOAD"])
 async def load(reservation: int,code: str, db: dp_dependecy):
     try:
         try:
+            #Todo fetch the associated e-commerce to the reservation
             revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
@@ -697,31 +714,36 @@ async def load(reservation: int,code: str, db: dp_dependecy):
                     db.execute(sql_query)
                     db.commit()
                     print(locker[6])
-                    #TODO aca debo hacer la llamada MQTT para abrir el cajon
-                    if MQTT:
-                        mqtt.publish("g1/load", {"nickname":locker[1]}) #publishing mqtt topic
-
-                    sql_query = text(f'SELECT * FROM "user" WHERE id = {reserva[1]}')
+                    sql_query = text(f"SELECT * FROM station WHERE id = {locker[7]} ")
                     result = db.execute(sql_query)
-                    user = result.fetchone()
+                    station = result.fetchone()
+                    if MQTT:
+                        print(locker[5])
+                        print('esto deberia ser el numero de la estacion pipi')
+                       
+                        print(station)
+                        for e in station:
+                            print(e)
+                        #TODO Change this to the agreement, we need to get the addres of these
+                        #! UNCOMMENT THIS
+                        mqtt.publish("load", {"station_name":f"{station[1]}","nickname":locker[1]}) #publishing mqtt topic
+
+
+                    
                     clave = generar_clave_alfanumerica()
                     sql_query = text(f"UPDATE locker SET code = '{clave}' WHERE locker.id = {locker[0]}")
                     db.execute(sql_query)
                     db.commit()
-                    create_record(db, reserva[0], reserva[1], reserva[3], reserva[5], datetime.now(), reserva[2], "Paquete cargador en locker")
+                    #TODO Change this reserva[1] should be a user/e-commerce_id and  in the end goes the email
+                    create_record(db, reserva[0], reserva[8], reserva[3], reserva[5], datetime.now(), reserva[2], f"Paquete cargador en locker {reserva[4]}, estacion: {station[1]} ",reserva[1])
                     print(f"Nueva clave: ${clave}")
-                    #TODO mandar el correo a este usuario con la nueva clave
-                    sql_query = text(f'SELECT * FROM "user" WHERE id={3}')
-                    result = db.execute(sql_query)
-                    cliente = result.fetchone()
-                    try:
-                        await send_email_async('Retirar producto',f'{cliente[2]}',
-                                f"Debes retirar en la Estacion G1 en el espacio {locker[1]} el paquete con reservacion {reservation} con el codigo: {clave}")
-                    except Exception as e:
-                        pass
+              
+                    await send_email_async('Retirar producto',f'{reserva[1]}',
+                            f"Debes retirar en la Estacion G1 en el espacio {locker[1]} el paquete con reservacion {reservation} con el codigo: {clave}")
                     if MQTT:
-                        mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
-
+                        #TODO Change this to the agreement
+                        # mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
+                        pass
 
 
 
@@ -736,6 +758,8 @@ async def load(reservation: int,code: str, db: dp_dependecy):
 async def load(reservation: int,code: str, db: dp_dependecy):
     try:
         try:
+            #Todo fetch the associated e-commerce to the reservation
+
             revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
@@ -761,13 +785,20 @@ async def load(reservation: int,code: str, db: dp_dependecy):
                     sql_query = text(f"UPDATE reservation SET estado = 'finalizada' WHERE id = {reservation}")
                     db.execute(sql_query)
                     db.commit()
-                    create_record(db, reserva[0], reserva[1], reserva[3], reserva[5], datetime.now(), reserva[2], "Paquete retirado de locker")
+                    #TODO Change this reserva[1] should be a user/e-commerce_id and  in the end goes the email
+
+                    create_record(db, reserva[0], reserva[8], reserva[3], reserva[5], datetime.now(), reserva[2], "Paquete retirado de locker",reserva[1])
                     print(locker[6])
                     #TODO aca debo hacer la llamada MQTT para abrir el cajon
                     if MQTT:
-                        mqtt.publish("g1/unload", {"nickname":locker[1]}) #publishing mqtt topic
+                        #TODO change this in function of the agreement
+                        sql_query = text(f"SELECT * FROM station WHERE id = {locker[7]} ")
+                        result = db.execute(sql_query)
+                        station = result.fetchone()
+                        #TODO Change this to the agreement, we need to get the addres of these
+                        #! CAMBIAR
+                        mqtt.publish("unload", {"station_name":f"{station[1]}","nickname":locker[1]}) #publishing mqtt topic
 
-                        mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
 
                    
                     sql_query = text(f"UPDATE locker SET code = NULL WHERE locker.id = {locker[0]}")
@@ -832,8 +863,14 @@ async def reservas( reservation_id: int, request: Request, db: dp_dependecy):
     historial = result.fetchall()
     sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation_id}")
     result = db.execute(sql_query)
-    actual_reservation = result.fetchone()
-    return templates.TemplateResponse("reservas.html", {"request": request, "historial": historial, "reservation": actual_reservation})
+    acciones = result.fetchall()
+    datos = []
+    #! Aca seguimos usando usuario, hay que revisarlo para hacerlo calzar con la nueva logica que estamos usando
+    for i in acciones:
+        sql_query = text(f'SELECT * FROM "user" where id = {i[1]}')
+        result = db.execute(sql_query)
+        usuario = result.fetchone()
+        datos.append((i[0], usuario[1], i[2], i[3], i[4], i[5], i[6], i[7], usuario[3], i[8]))
     
 
 # @app.get('/reservas/')

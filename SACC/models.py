@@ -43,13 +43,15 @@ class Reservation(Base):
     __tablename__ = "reservation"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("user.id"))
+    client_email = Column(String)
     order_id = Column(Integer, ForeignKey("order.id"))
     locker_id = Column(Integer, ForeignKey("locker.id"))
     locker_personal_id = Column(Integer)
     station_id = Column(Integer, ForeignKey("station.id"))
     fecha = Column(DateTime)
     estado = Column(String)
+    user_id = Column(Integer, ForeignKey("user.id"))
+
     
 class States(Base):
     __tablename__ = "states"

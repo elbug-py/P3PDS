@@ -37,7 +37,7 @@
                                 <td>{{ locker_info.personal_id }}</td>
                                 <td>{{ locker_info.state }}</td>
                                 <td>{{ locker_info.Status_fisico }}</td>
-                                <td style="font-weight: 500;color: {% if locker_info.comparacion == 'STATUS WITH DIFFERENCE' %}red{% else %}green{% endif %};">
+                                <td style="font-weight: 500;color: {% if locker_info.comparacion == 'STATUS OK' %}green{% else %}red{% endif %};">
                                     {{ locker_info.comparacion }}
                                 </td>
                                 <td>{{ locker_info.height }} cm</td>

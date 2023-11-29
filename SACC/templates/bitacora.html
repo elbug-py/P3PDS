@@ -18,22 +18,19 @@
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th scope="col">Nombre</th>
-                        <th scope="col">Tipo Usuario</th>
-                        <th scope="col">Correo Usuario</th>
+                        <th scope="col">Ecommerce Asociada</th>
                         <th scope="col">Acción</th>
                         <th scope="col">Fecha</th>
-                        
+                        <th scope="col">Correo Usuario</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for accion in acciones %}
                         <tr>
-                            <td>{{ accion[1] }}</td>
-                            <td>{{ accion[8] }}</td>
-                            <td>  correo </td>
+                            <td>{{ accion[2] }}</td>
                             <td>{{ accion[7] }}</td>
                             <td>{{ accion[5].strftime('%d/%m/%y - %H:%M') }}</td>
+                            <td>{{ accion[9] }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
