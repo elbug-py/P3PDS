@@ -65,9 +65,9 @@ class Historial(BaseModel):
 
 if __name__=="__main__":
     models.Base.metadata.create_all(bind=engine)
-    uvicorn.run("app.app:app",port=8000, reload=True)
-    # port = int(os.environ.get("PORT", 8000))
-    # uvicorn.run("app.app:app", host="0.0.0.0", port=port, log_level="info", reload=True)
+    # uvicorn.run("app.app:app",port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("app.app:app", host="0.0.0.0", port=port, log_level="info", reload=True)
 
 
 

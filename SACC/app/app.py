@@ -19,7 +19,7 @@ import json
 from fastapi.templating import Jinja2Templates
 
 templates = Jinja2Templates(directory="templates")
-MQTT = True
+MQTT = False
 
 def generar_clave_alfanumerica(longitud=12):
     """
