@@ -170,19 +170,19 @@ def load_initial_data(db: Session):
         db.add(db_order)
         db.commit()
 
-    if not db.query(models.Reservation).count():
-        db_reservation = models.Reservation(user_id=3, order_id=1, locker_id=1, locker_personal_id=1, station_id=1, fecha=datetime.now(), estado="activa")
-        db.add(db_reservation)
-        db.commit()
+    # if not db.query(models.Reservation).count():
+    #     db_reservation = models.Reservation(user_id=3, order_id=1, locker_id=1, locker_personal_id=1, station_id=1, fecha=datetime.now(), estado="activa")
+    #     db.add(db_reservation)
+    #     db.commit()
 
-    if not db.query(models.Historial).count():
-        db_historial = models.Historial(reservation_id=3, user_id=1, locker_id=1, station_id=1, fecha=datetime.now(), order_id=1, accion="creacion reserva")
-        db.add(db_historial)
-        db_historial = models.Historial(reservation_id=3, user_id=1, locker_id=2, station_id=1, fecha=datetime.now(), order_id=1, accion="reserva confirmada, medidas correctas")
-        db.add(db_historial)
-        db_historial = models.Historial(reservation_id=3, user_id=1, locker_id=3, station_id=1, fecha=datetime.now(), order_id=1, accion="Listo para retirar")
-        db.add(db_historial)
-        db.commit()
+    # if not db.query(models.Historial).count():
+    #     db_historial = models.Historial(reservation_id=3, user_id=1, locker_id=1, station_id=1, fecha=datetime.now(), order_id=1, accion="creacion reserva")
+    #     db.add(db_historial)
+    #     db_historial = models.Historial(reservation_id=3, user_id=1, locker_id=2, station_id=1, fecha=datetime.now(), order_id=1, accion="reserva confirmada, medidas correctas")
+    #     db.add(db_historial)
+    #     db_historial = models.Historial(reservation_id=3, user_id=1, locker_id=3, station_id=1, fecha=datetime.now(), order_id=1, accion="Listo para retirar")
+    #     db.add(db_historial)
+    #     db.commit()
     
     
 dp_dependecy = Annotated[Session, Depends(get_db)]
