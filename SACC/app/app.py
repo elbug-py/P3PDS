@@ -18,8 +18,10 @@ from fastapi_mqtt.config import MQTTConfig
 import json
 from fastapi.templating import Jinja2Templates
 
+
 templates = Jinja2Templates(directory="sacc/templates")
 MQTT = False
+
 
 def generar_clave_alfanumerica(longitud=12):
     """
@@ -258,12 +260,12 @@ app = FastAPI()
 if MQTT:
 
     mqtt_config = MQTTConfig(
-        host="ab34c5b092fc416db7e2f21aa7d38514.s1.eu.hivemq.cloud",
+        host="b691d2e8433d49499db17af66c771b55.s1.eu.hivemq.cloud",
         port=8883,
         ssl=True,
         keepalive=60,
-        username="M0ki1",
-        password="1331Mati??",
+        username="MQTTeam",
+        password="AWShaters123",
     )
     mqtt = FastMQTT(config=mqtt_config)
     mqtt.init_app(app)
@@ -293,12 +295,13 @@ if MQTT:
     #TODO change this in function of the actual topic
 
     #! CHECK WHEN CHANGING THE TOPIC SUBSCRIBING TO ADAPT THE NEW MULTI STATION
-    @mqtt.subscribe("g1/physical_verification")
+    @mqtt.subscribe("status")
     async def message_to_topic(client, topic, payload, qos, properties):
         print("Received message to specific topic: ", topic, payload.decode(), qos, properties)
         print(payload.decode())
         global locker_state
-        locker_state = json.loads(payload.decode())
+        # locker_state = json.loads(payload.decode())
+        # print(json.loads(payload.decode()))
 
     @mqtt.on_disconnect()
     def disconnect(client, packet, exc=None):
@@ -589,7 +592,7 @@ async def confirm(height: int, width: int, depth: int, reservation: int, operato
             if reserva is None:
                 return {"message": "Failed to confirm, reservation does not exist"}
             else:
-                sql_query = text(f'SELECT * FROM locker WHERE id = {reserva[2]}')
+                sql_query = text(f'SELECT * FROM locker WHERE id = {reserva[3]}')
                 result = db.execute(sql_query)
                 locker = result.fetchone()
                 if locker is None:
@@ -601,7 +604,7 @@ async def confirm(height: int, width: int, depth: int, reservation: int, operato
                         create_record(db, reserva[0], e_commerce[0], reserva[3], reserva[5], datetime.now(), reserva[2], "Medidas y reserva confirmadas",reserva[1])
                         create_record(db, reserva[0], e_commerce[0], reserva[3], reserva[5], datetime.now(), reserva[2], f"Correo enviado al operario{operator_email}",reserva[1])
 
-                       
+                        print(locker)
                         await send_email_async('Entregar Product',f'{operator_email}',
                                 f"Debes entregar en la Estacion G1 en el espacio {locker[1]} el paquete con reservacion {reservation} con el codigo: {locker[6]}")
                         return {"message": "Package confirmed"}
@@ -697,7 +700,9 @@ async def load(reservation: int,code: str, db: dp_dependecy):
                         for e in station:
                             print(e)
                         #TODO Change this to the agreement, we need to get the addres of these
-                        mqtt.publish("LOAD", {"station_name":f"{station[1]}","nickname":locker[1]}) #publishing mqtt topic
+                        #! UNCOMMENT THIS
+                        mqtt.publish("load", {"station_name":f"{station[1]}","nickname":locker[1]}) #publishing mqtt topic
+
 
                     
                     clave = generar_clave_alfanumerica()
@@ -766,7 +771,9 @@ async def load(reservation: int,code: str, db: dp_dependecy):
                         result = db.execute(sql_query)
                         station = result.fetchone()
                         #TODO Change this to the agreement, we need to get the addres of these
-                        mqtt.publish("UNLOAD", {"station_name":f"{station[1]}","nickname":locker[1]}) #publishing mqtt topic
+                        #! CAMBIAR
+                        mqtt.publish("unload", {"station_name":f"{station[1]}","nickname":locker[1]}) #publishing mqtt topic
+
 
                    
                     sql_query = text(f"UPDATE locker SET code = NULL WHERE locker.id = {locker[0]}")
