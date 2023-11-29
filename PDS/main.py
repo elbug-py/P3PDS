@@ -109,25 +109,30 @@ motor3.move(120)
 time.sleep(0.25)
 
 general_states= {
-    "station_id": "G1", 
+    "station_name": "G1", 
+    "address":"Universidad de los Andes",
     "lockers": [
     {
         "nickname": "1",
         "state": 0,
         "is_open": False,
         "is_empty": True,
+        "size":"20x40x20"
     },
     {
         "nickname": "2",
         "state": 0,
         "is_open": False,
         "is_empty": True,
+        "size":"30x40x20"
     },
     {
         "nickname": "3",
         "state": 0,
         "is_open": False,
         "is_empty": True,
+        "size":"40x40x20"
+
     }
     ]
 }
@@ -167,6 +172,7 @@ def verificacion_fisica():
         leer_sensor_IR(i)
 
     estados = ujson.dumps(general_states)
+    #TODO change this to make it cohesivly 
     mqtt_publish(client=mqtt,message=estados,topic="g1/physical_verification")
     #ACA MANDAMOS EL ESTADO
 
@@ -241,33 +247,35 @@ def mqtt_subscribe(topic,msg):
     print("LLEGO CARTAAA")
     message = ujson.loads(msg)
     print('Message received...')
+    #TODO aca el topico va a ser nuestra accion, de load o unload
+    #TODO primero si debemos verificar que esta accion sea para nosotros G1
+    #TODO entonces ahi le pasamos la info
+
     topico = topic.decode("utf-8")
-    accion= (topico.split("/"))[-1]
+    # accion= (topico.split("/"))[-1]
+    accion = topico
+
     casillero= int(message["nickname"])
     print(message)
-    if accion == "verification":
-            response = verificacion_fisica()
-    elif accion == "load":
+    # if accion == "verification":
+    #         response = verificacion_fisica()
+    if accion == "LOAD":
         response = abrir_locker(casillero, "cargar")
-    elif accion == "unload":
+    elif accion == "UNLOAD":
         response = abrir_locker(casillero, "retirar")
-    elif accion == "reserve":
-        incoming_state = int(message["state"])
-        general_states["lockers"][casillero-1]["state"] = incoming_state
+
     else:
         print("ACCION NO RECONOCIDA")
     estados = ujson.dumps(general_states)
-
+    #TODO change this in function of the agreement
     mqtt_publish(client=mqtt,message=estados,topic="g1/physical_verification")
     
     
 # MAIN
 mqtt = mqtt_connect(CLIENT_ID, SERVER, SSL_PARAMS)
 mqtt.set_callback(mqtt_subscribe)
-mqtt.subscribe("g1/verification")
-mqtt.subscribe("g1/load")
-mqtt.subscribe("g1/unload")
-mqtt.subscribe("g1/reserve")
+mqtt.subscribe("LOAD")
+mqtt.subscribe("UNLOAD")
 
 #Aca tenemos que subscribirnos a los distintos topicos
 

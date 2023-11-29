@@ -37,7 +37,8 @@ class User(BaseModel):
     
     
 class Reservation(BaseModel):
-    user: List[User]
+    # user: List[User]
+    client_email: str
     order: List[Order]
     locker: List[Locker]
     locker_personal_id: int
