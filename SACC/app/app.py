@@ -413,6 +413,7 @@ async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: i
                 sql_query = text(f'SELECT * FROM "locker" WHERE id = {locker_encontrado[0]}')
                 result = db.execute(sql_query)
                 locker_personal = result.fetchone()
+                
                 #!This may broke for the client_email change in reserve, keep an eye in it
 
                 create_record(db, db_reservation.id, e_commerce[0], locker_encontrado[0], station_by_locker_id(db, locker_encontrado[0])[0], datetime.now(), db_order.id, "creacion reserva",client_email)
@@ -427,7 +428,7 @@ async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: i
                     # mqtt.publish("g1/verification", {"nickname":""}) #publishing mqtt topic
                     pass
 
-                return {"message": "Reservation successful", "locker_id": locker_encontrado[0], "station_id": station_by_locker_id(db, locker_encontrado[0])[0], "code": clave}
+                return {"message": "Reservation successful", "locker_id": locker_encontrado[0], "station_id": station_by_locker_id(db, locker_encontrado[0])[0],'reservation_id':db_reservation.id}
         except Exception as e:
             return {"message": f"Error: {e}"}
     except requests.exceptions.Timeout:
