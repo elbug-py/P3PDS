@@ -18,7 +18,11 @@ from fastapi_mqtt.config import MQTTConfig
 import json
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 
+origins = [
+    "*",
+]
 
 templates = Jinja2Templates(directory="templates")
 MQTT = True
@@ -264,6 +268,13 @@ def revisar_reservas_expiradas(db: Session, max_minutes: int = 24):
     
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 if MQTT:
 
     mqtt_config = MQTTConfig(
