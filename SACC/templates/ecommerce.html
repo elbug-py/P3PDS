@@ -15,7 +15,7 @@
         <h4 class="text-center my-4">Ecommerce</h4>
         <div class="container w-50">
             {% if modo == "new" %}
-                <form id="ecommerceCrearForm" class="my-3" method="POST" >
+                <form id="ecommerceCrearForm" class="my-3" method="POST" action="/create_ecommerce/">
                     <div class="mb-3">
                         <label for="nameInput" class="form-label">Nombre Ecommerce</label>
                         <input type="text" class="form-control" id="nameInput" name="nameInput" required>
@@ -46,11 +46,11 @@
                     <div class = "alert alert-danger" role="alert" id="error" style="display:none">
                         Contraseña Incorrecta
                     </div>
-                    <button type="submit" class="btn btn-primary" onclick="enviarFormularioCrear()">Crear</button>
+                    <button type="button" class="btn btn-primary" onclick="enviarFormularioCrear()">Crear</button>
                 </form>
             {% endif %}
             {% if modo == "edit" %}
-                <form id="ecommerceEditarForm" class="my-3" method="POST" >
+                <form id="ecommerceEditarForm" class="my-3" method="POST" action="/edit_ecommerce/">
                     <div class="mb-3">
                         <label for="nameInput" class="form-label">Nombre Ecommerce</label>
                         <input type="text" class="form-control" id="nameInput" name="nameInput" required value="{{ecommerce[1]}}">
@@ -81,11 +81,11 @@
                     <div class = "alert alert-danger" role="alert" id="error" style="display:none">
                         Contraseña Incorrecta
                     </div>
-                    <button type="submit" class="btn btn-warning" onclick="enviarFormularioEditar()">Confirmar Edición</button>
+                    <button type="button" class="btn btn-warning" onclick="enviarFormularioEditar()">Confirmar Edición</button>
                 </form>
             {% endif %}
             {% if modo == "delete" %}
-                <form id="ecommerceEliminarForm" class="my-3" method="POST" >
+                <form id="ecommerceEliminarForm" class="my-3" method="POST" action="/delete_ecommerce/">
                     <div class="mb-3">
                         <label for="nameInput" class="form-label">Nombre Ecommerce</label>
                         <input type="hidden" class="form-control" id="nameInput"  name="nameInput" required value="{{ecommerce[1]}}">
@@ -118,7 +118,7 @@
                     <div class = "alert alert-danger" role="alert" id="error" style="display:none">
                         Contraseña Incorrecta
                     </div>
-                    <button type="submit" class="btn btn-danger" onclick="enviarFormularioEliminar()">Confirmar Delete</button>
+                    <button type="button" class="btn btn-danger" onclick="enviarFormularioEliminar()">Confirmar Delete</button>
                 </form>
             {% endif %}
         </div>
@@ -145,7 +145,7 @@
         console.log(formObject);
     
         // Envia el objeto como JSON
-        fetch('https://p3pds-production.up.railway.app/create_ecommerce', {
+        fetch('/create_ecommerce/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -183,7 +183,7 @@
         console.log(formObject);
     
         // Envia el objeto como JSON
-        fetch('https://p3pds-production.up.railway.app/edit_ecommerce', {
+        fetch('/edit_ecommerce/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -221,7 +221,7 @@
         console.log(formObject);
     
         // Envia el objeto como JSON
-        fetch('https://p3pds-production.up.railway.app/delete_ecommerce', {
+        fetch('/delete_ecommerce/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -243,5 +243,6 @@
     }
 
 </script>
+
 
 
