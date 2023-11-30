@@ -142,14 +142,14 @@ def load_initial_data(db: Session):
             db.add(db_state)
         db.commit()
 
-    if not db.query(models.Order).count():
-        db_order = models.Order(name="order1", width=20, height=20, depth=20)
-        db.add(db_order)
-        db_order = models.Order(name="order2", width=30, height=30, depth=30)
-        db.add(db_order)
-        db_order = models.Order(name="order3", width=40, height=40, depth=40)
-        db.add(db_order)
-        db.commit()
+    # if not db.query(models.Order).count():
+    #     db_order = models.Order(name="order1", width=20, height=20, depth=20)
+    #     db.add(db_order)
+    #     db_order = models.Order(name="order2", width=30, height=30, depth=30)
+    #     db.add(db_order)
+    #     db_order = models.Order(name="order3", width=40, height=40, depth=40)
+    #     db.add(db_order)
+    #     db.commit()
 
     # if not db.query(models.Reservation).count():
     #     db_reservation = models.Reservation(user_id=3, order_id=1, locker_id=1, locker_personal_id=1, station_id=1, fecha=datetime.now(), estado="activa")
@@ -838,29 +838,29 @@ async def estado_casilleros(request: Request, db: dp_dependecy):
  
     return templates.TemplateResponse("estado_casilleros.html", {"request": request, "saccs": dic})
 
-@app.post('/reservas/{reservation_id}', tags=['RESERVAS'])
-async def reservas( reservation_id: int, request: Request, db: dp_dependecy):
-    sql_query = text(f"SELECT * FROM historial WHERE reservation_id = {reservation_id}")
-    result = db.execute(sql_query) 
-    historial = result.fetchall()
-    sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation_id}")
-    result = db.execute(sql_query)
-    acciones = result.fetchall()
-    datos = []
-    #! Aca seguimos usando usuario, hay que revisarlo para hacerlo calzar con la nueva logica que estamos usando
-    for i in acciones:
-        sql_query = text(f'SELECT * FROM "user" where id = {i[1]}')
-        result = db.execute(sql_query)
-        usuario = result.fetchone()
-        datos.append((i[0], usuario[1], i[2], i[3], i[4], i[5], i[6], i[7], usuario[3], i[8]))
+# @app.post('/reservas/{reservation_id}', tags=['RESERVAS'])
+# async def reservas( reservation_id: int, request: Request, db: dp_dependecy):
+#     sql_query = text(f"SELECT * FROM historial WHERE reservation_id = {reservation_id}")
+#     result = db.execute(sql_query) 
+#     historial = result.fetchall()
+#     sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation_id}")
+#     result = db.execute(sql_query)
+#     acciones = result.fetchall()
+#     datos = []
+#     #! Aca seguimos usando usuario, hay que revisarlo para hacerlo calzar con la nueva logica que estamos usando
+#     for i in acciones:
+#         sql_query = text(f'SELECT * FROM "user" where id = {i[1]}')
+#         result = db.execute(sql_query)
+#         usuario = result.fetchone()
+#         datos.append((i[0], usuario[1], i[2], i[3], i[4], i[5], i[6], i[7], usuario[3], i[8]))
     
 
-# @app.get('/reservas/')
-# async def reservas(request: Request, db: dp_dependecy):
-#     sql_query = text(f"SELECT * FROM reservation")
-#     result = db.execute(sql_query)
-#     reservas = result.fetchall()
-#     return templates.TemplateResponse("reservas.html", {"request": request, "reservas": reservas})
+@app.get('/reservas/')
+async def reservas(request: Request, db: dp_dependecy):
+    sql_query = text(f"SELECT * FROM reservation")
+    result = db.execute(sql_query)
+    reservas = result.fetchall()
+    return templates.TemplateResponse("reservas.html", {"request": request, "reservas": reservas})
 
 
 
@@ -956,3 +956,15 @@ async def ecommerce(request: Request, db: dp_dependecy):
 #     elif data.modo == "edit":
 #         print(data)
 #     return {"message": "Datos recibidos correctamente"}
+@app.get('/bitacora/')
+async def bitacora(request: Request, db: dp_dependecy, reservation_id: int = None):
+    sql_query = text(f"SELECT * FROM historial WHERE reservation_id = {reservation_id}")
+    result = db.execute(sql_query)
+    acciones = result.fetchall()
+    datos = []
+    #! Aca seguimos usando usuario, hay que revisarlo para hacerlo calzar con la nueva logica que estamos usando
+    for i in acciones:
+        sql_query = text(f'SELECT * FROM "user" where id = {i[1]}')
+        result = db.execute(sql_query)
+        usuario = result.fetchone()
+        datos.append((i[0], usuario[1], i[2], i[3], i[4], i[5], i[6], i[7], usuario[3], i[8]))

@@ -25,8 +25,7 @@
                     <div class="card-body">
                         <h5 class="card-title">Dashboard</h5>
                         <p class="card-text">Dashboard con el uso actual e histórico de las distintas estaciones.</p>
-                        
-                        <a href="/dashboard" class="btn btn-primary">IR</a>
+                        <a href="/dashboard/" class="btn btn-primary">IR</a>
                     </div>
                 </div>
             </div>
@@ -35,26 +34,12 @@
                     <div class="card-body">
                         <h5 class="card-title">Bitácora</h5>
                         <p class="card-text">Ver una reserva y sus movimientos detallados</p>
-                        
-                            <input type="text" class="form-control mb-3" placeholder="ID de reserva" id="id_reserva">
-                            <button class="btn btn-primary" onclick="postID()">VER</button>
-                        
+                        <a href="/reservas/" class="btn btn-primary">Buscar una reserva</a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     {% include 'footer.html'%}
-
-    <script>
-        function postID() {
-            var id = document.getElementById("id_reserva").value;
-            var form = document.createElement("form");
-            form.setAttribute("method", "post");
-            form.setAttribute("action", "/reservas/" + id);
-            document.body.appendChild(form);
-            form.submit();
-        }
-    </script>
 </body>
 </html>
