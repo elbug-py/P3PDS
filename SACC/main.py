@@ -34,7 +34,7 @@ class Order(BaseModel):
 class User(BaseModel):
     name: str
     token: str
-    timeForPickup: int
+    timeforpickup: int
     
     
 class Reservation(BaseModel):

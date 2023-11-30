@@ -30,9 +30,14 @@
                         <input type="hidden" class="form-control" id="tokenInput" name="tokenInput" required value="token">
                     </div>
                     <div class="mb-3">
+                        <label for="timeForPickupInput" class="form-label">Timeout</label>
+                        <input type="number" class="form-control" id="timeForPickupInput" name="timeForPickupInput" required>
+                    </div>
+                    <div class="mb-3">
                         <label for="passInput" class="form-label">Admin Password</label>
                         <input type="password" class="form-control" id="passInput" name="passInput" required>
                     </div>
+                    
                     
                     <div class = "alert alert-danger" role="alert" id="error" style="display:none">
                         Contraseña Incorrecta
@@ -55,6 +60,10 @@
                     <div class="mb-3">
                         <label for="tokenInput" class="form-label">Token</label>
                         <input type="text" class="form-control" id="tokenInput" name="tokenInput" required value="{{ecommerce[2]}}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="timeForPickupInput" class="form-label">Timeout</label>
+                        <input type="number" class="form-control" id="timeForPickupInput" name="timeForPickupInput" required value="{{ecommerce[3]}}">
                     </div>
                     <div class="mb-3">
                         <label for="passInput" class="form-label">Admin Password</label>
@@ -83,7 +92,12 @@
                     <div class="mb-3">
                         <label for="tokenInput" class="form-label">Token</label>
                         <input type="hidden" class="form-control" id="tokenInput" name="tokenInput" required value="{{ecommerce[2]}}">
-                        <input type="text" class="form-control" id="tokenInputGhost" name="tokenInputGhost" required value="{{ecommerce[2]}}">
+                        <input type="text" class="form-control" id="tokenInputGhost" name="tokenInputGhost" disabled required value="{{ecommerce[2]}}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="timeForPickupInputGhost" class="form-label">Timeout</label>
+                        <input type="hidden" class="form-control" id="timeForPickupInput" name="timeForPickupInput" required value="{{ecommerce[3]}}">
+                        <input type="number" class="form-control" id="timeForPickupInputGhost" name="timeForPickupInputGhost" disabled required value="{{ecommerce[3]}}">
                     </div>
                     <div class="mb-3">
                         <label for="passInput" class="form-label">Admin Password</label>
@@ -217,6 +231,5 @@
     }
 
 </script>
-
 
 

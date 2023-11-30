@@ -37,7 +37,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
     token = Column(String)
-    timeForPickup = Column(DateTime)
+    timeforpickup = Column(Integer)
     
     
 class Reservation(Base):

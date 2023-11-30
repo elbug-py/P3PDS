@@ -241,12 +241,12 @@ def encontrar_locker_mas_pequeno(alto_paquete, ancho_paquete, profundidad_paquet
             return i
     return None
 
-def revisar_reservas_expiradas(db: Session, max_hours: int = 24):
+def revisar_reservas_expiradas(db: Session, max_minutes: int = 24):
     sql_query = text(f"SELECT * FROM reservation WHERE estado = 'activa'")
     result = db.execute(sql_query)
     reservas = result.fetchall()
     for reserva in reservas:
-        if datetime.now() - reserva[6] > timedelta(hours=max_hours):
+        if datetime.now() - reserva[6] > timedelta(minutes=max_minutes):
             create_record(db, reserva[0], reserva[1], reserva[3], reserva[5], datetime.now(), reserva[2], "Reserva expirada, estado cambia a cancelada")
             sql_query = text(f"UPDATE reservation SET estado = 'cancelada' WHERE id = {reserva[0]}")
             db.execute(sql_query)
@@ -363,7 +363,7 @@ async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: i
                 return {"message": "Token no valido"}
             print(e_commerce)
 
-            revisar_reservas_expiradas(db)
+            revisar_reservas_expiradas(db,e_commerce[3])
             sql_query = text(f"SELECT * FROM locker WHERE state = 0")
             result = db.execute(sql_query)
             lockers = result.fetchall()
@@ -446,7 +446,7 @@ async def confirm_reservation(reservation: int,token:str, db: dp_dependecy):
 
             if (e_commerce) == None:
                 return {"message": "Token no valido"}
-            revisar_reservas_expiradas(db)
+            revisar_reservas_expiradas(db,e_commerce[3])
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -502,7 +502,7 @@ async def cancel_reservation(reservation: int,token:str, db: dp_dependecy): #TOD
 
             if (e_commerce) == None:
                 return {"message": "Token no valido"}
-            revisar_reservas_expiradas(db)
+            revisar_reservas_expiradas(db,e_commerce[3])
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -559,7 +559,7 @@ async def reservation_state(reservation: int, token:str ,db: dp_dependecy):
 
             if (e_commerce) == None:
                 return {"message": "Token no valido"}
-            revisar_reservas_expiradas(db)
+            revisar_reservas_expiradas(db,e_commerce[3])
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             locker_id = result.fetchone()[3]
@@ -598,7 +598,7 @@ async def confirm(height: int, width: int, depth: int, reservation: int, operato
 
             if (e_commerce) == None:
                 return {"message": "Token no valido"}
-            revisar_reservas_expiradas(db)
+            revisar_reservas_expiradas(db,e_commerce[3])
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -679,7 +679,7 @@ async def load(reservation: int,code: str, db: dp_dependecy):
     try:
         try:
             #Todo fetch the associated e-commerce to the reservation
-            revisar_reservas_expiradas(db)
+            # revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -748,7 +748,7 @@ async def load(reservation: int,code: str, db: dp_dependecy):
         try:
             #Todo fetch the associated e-commerce to the reservation
 
-            revisar_reservas_expiradas(db)
+            # revisar_reservas_expiradas(db)
             sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation}")
             result = db.execute(sql_query)
             reserva = result.fetchone()
@@ -812,7 +812,7 @@ async def func():
 
 @app.get("/")
 async def home(request: Request, db: dp_dependecy):
-    revisar_reservas_expiradas(db)
+    # revisar_reservas_expiradas(db)
     return templates.TemplateResponse("home.html", {"request": request})
 
 
@@ -1063,13 +1063,14 @@ class ecommerceData(BaseModel):
     passInput: str
     tokenInput: str
     modoInput: str
+    timeForPickupInput: int
         
 @app.post('/create_ecommerce')
 async def create_commerce(data: ecommerceData, db: dp_dependecy):
     try:
         if data.passInput == 'super_secret_password':
             token = generar_clave_alfanumerica()
-            db_user = models.User(name=data.nameInput, token=token)
+            db_user = models.User(name=data.nameInput, token=token, timeforpickup=data.timeForPickupInput)
             db.add(db_user)
             db.commit()
             print(token)
@@ -1083,15 +1084,15 @@ async def create_commerce(data: ecommerceData, db: dp_dependecy):
 async def edit_commerce(data: ecommerceData, db: dp_dependecy):
     try:
         if data.passInput == 'super_secret_password':
-            sql_query = text(f'UPDATE "user" SET name = :nameInput, token = :tokenInput WHERE id = :idInput')
-            db.execute(sql_query, {'nameInput': data.nameInput, 'tokenInput': data.tokenInput, 'idInput': data.idInput})
+            sql_query = text(f'UPDATE "user" SET name = :nameInput, token = :tokenInput, timeforpickup = :timeForPickupInput WHERE id = :idInput')
+            db.execute(sql_query, {'nameInput': data.nameInput, 'tokenInput': data.tokenInput, 'timeForPickupInput': data.timeForPickupInput, 'idInput': data.idInput})
             db.commit()
             return {"result": True,"message":"E-commerce editado con exito"}
         else:
             return {"result": False,"message":"No tienes acceso para crear el e-commerce" }
     except:
-        return {"result": False,"message":"Ha ocurrido un error" }
-        
+        return {"result": False,"message":"Ha ocurrido un error" }     
+    
 @app.post('/delete_ecommerce')
 async def delete_commerce(data: ecommerceData, db: dp_dependecy):
     try:
@@ -1177,3 +1178,14 @@ async def reservasHistoricas(token:str,db:dp_dependecy):
 
     except Exception as E:
         return {"message": f"{E}"}
+    
+@app.post('/change_time/')
+async def changeTime(token:str,minutes:int,db:dp_dependecy):
+    sql_query = text('SELECT * FROM "user" WHERE token = :token')
+    result = db.execute(sql_query, {'token': token})
+    print(result)
+    e_commerce = result.fetchone()
+    sql_query = text('UPDATE "user" SET timeForPickup = :new_time WHERE id = :current_id ')
+    db.execute(sql_query, {'new_time': minutes, 'current_id': e_commerce[0]})
+    db.commit()
+    return {'message':'Tiempo actualizado con exito'}
