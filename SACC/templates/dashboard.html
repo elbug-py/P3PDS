@@ -27,73 +27,135 @@
 
         {% for station in stations %}
         <div class="container-xl w-75 text-center mb-4">
-            <h4 class="text-center mb-4">Estación {{ station[0] }}</h4>
-            <h5 class="text-center mb-4">Datos actuales</h5>
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th scope="col">ID Casillero</th>
-                        <th scope="col">Estado Actual</th>
-                        <th scope="col">Fecha creacion</th>
-                        <th scope="col">Alto</th>
-                        <th scope="col">Ancho</th>
-                        <th scope="col">Profundidad</th>
-                        
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for locker in lockers %}
-                        {% if locker[7] == station[0] %}
+            <button class="toggle-button" data-target="station-{{ station[0] }}">Toggle Station {{ station[0] }}</button>
+            <div id="station-{{ station[0] }}" class="station-info" style="display: none;">
+                <h4 class="text-center mb-4">Estación {{ station[0] }}</h4>
+                <h5 class="text-center mb-4">Porcentaje de ocupación {{station_usage[station[0]]}}%</h5>
+                
+                <h5 class="text-center mb-4">Datos actuales</h5>
+                <table class="table table-striped">
+                    <thead>
                         <tr>
-                            <th scope="row">{{ locker[0] }}</th>
-                            <td>{{ estados_generales_str[locker[2]] }}</td>
-                            <td>{{ oldest_dates[locker[0]] }}</td>
-                            <td>{{ locker[3] }}</td>
-                            <td>{{ locker[4] }}</td>
-                            <td>{{ locker[5] }}</td>
-                            
+                            <th scope="col">ID Casillero</th>
+                            <th scope="col">Estado Actual</th>
+                            <th scope="col">Alto</th>
+                            <th scope="col">Ancho</th>
+                            <th scope="col">Profundidad</th>
                             
                         </tr>
-                        {% endif %}
-                    {% endfor %}
-                </tbody>
-            </table>
-            <h5 class="text-center mb-4">Datos históricos</h5>
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th scope="col">ID Casillero</th>
-                        <th scope="col">Accion Realizada</th>
-                        <th scope="col">Fecha</th>
-                        
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for locker in historial %}
-                        {% if loop.index <= 5 %} 
-                        
-                        <tr>
-                            <th scope="row">{{ locker[3] }}</th>
-                            <td>{{ locker[7] }}</td>
-                            <td>{{ locker[5] }}</td>
+                    </thead>
+                    <tbody>
+                        {% for locker in lockers %}
+                            {% if locker[7] == station[0] %}
                             
+                            
+                            <tr>
+                            
+                                <th scope="row">{{ locker[0] }}</th>
+                                {% if time_elapsed_since_reservations[locker[0]]>= 432000 or time_elapsed_since_loads[locker[0]] >= 259200 %}
+                                    <td style="background-color: red;">{{ estados_generales_str[locker[2]] }}</td>
+                                {% else %}
+                                    <td >{{ estados_generales_str[locker[2]] }}</td>
+                                {% endif %}
+                                <td>{{ locker[3] }}</td>
+                                <td>{{ locker[4] }}</td>
+                                <td>{{ locker[5] }}</td>
+                                
+                                
+                            </tr>
+                            
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <h5 class="text-center mb-4">Datos históricos</h5>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th scope="col">ID Casillero</th>
+                            <th scope="col">Accion Realizada</th>
+                            <th scope="col">Fecha</th>
                             
                         </tr>
-                        {% endif %}
-                        
-                    {% endfor %}
-                </tbody>
-            </table>
-            <button id="seeMoreBtn" onclick="toggleHistoricalEntries()">See More</button>
-            <canvas id="myChart" width="400" height="400"></canvas>
+                    </thead>
+                    <tbody>
+                        {% for locker in historial %}
+                            {% if locker[4] == station[0] %}
+                            
+                            
+                            <tr>
+                                <th scope="row">{{ locker[3] }}</th>
+                                <td>{{ locker[7] }}</td>
+                                <td>{{ locker[5] }}</td>
+                                
+                                
+                            </tr>
+                            {% endif %}
+                            
+                            
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <h5 class="text-center mb-4">Tiempos Promedio</h5>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th scope="col">ID Casillero</th>
+                            <th scope="col">Tiempo entre reservas y cargas (dd:hh:mm:ss)</th>
+                            <th scope="col">Tiempo entre cargas y descargas (dd:hh:mm:ss)</th>
+                            
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for locker in lockers %}
+                            {% if locker[7] == station[0] %}
+                        <tr>
+                            <th scope="row">{{locker[0]}}</th>
+                            {% if locker[0] not in time_between_reservations_and_loads %}
+                                <td>N/a</td>
+                            {% else %}
+                                <td>{{time_between_reservations_and_loads[locker[0]]}}</td>
+                            {% endif %}
+                            {% if locker[0] not in time_between_loads_and_unloads %}
+                                <td>N/a</td>
+                            {% else %}
+                                <td>{{time_between_loads_and_unloads[locker[0]]}}</td>
+                            {% endif %}
+
+                        </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <canvas id="myChart" width="400" height="400"></canvas>
+            </div>
         </div>
         {% endfor %}
 
-        {{ historial}}
-        {{oldest_dates}}
+        {{time_between_reservations_and_loads}}
+        {{time_between_loads_and_unloads}}
         {% include 'footer.html'%}
 
         <script>
+            document.addEventListener("DOMContentLoaded", function () {
+            var buttons = document.querySelectorAll(".toggle-button");
+
+            buttons.forEach(function (button) {
+                button.addEventListener("click", function () {
+                    var targetId = this.getAttribute("data-target");
+                    var target = document.getElementById(targetId);
+
+                    if (target.style.display === "none") {
+                        target.style.display = "block";
+                    } else {
+                        target.style.display = "none";
+                    }
+                });
+            });
+            });
+
+
+
             document.addEventListener("DOMContentLoaded", function () {
                 var ctx = document.getElementById('myChart').getContext('2d');
                 
@@ -132,25 +194,6 @@
             });
         </script>
         
-        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                function toggleHistoricalEntries() {
-                    var table = document.getElementById('historicalTable');
-                    var btn = document.getElementById('seeMoreBtn');
-        
-                    // Check if the table element is found
-                    if (table) {
-                        // Toggle visibility of additional entries
-                        var display = table.style.display === 'none' || table.style.display === '' ? 'table' : 'none';
-                        table.style.display = display;
-        
-                        // Update button text
-                        btn.innerText = display === 'none' ? 'See More' : 'See Less';
-                    }
-                }
-                
-            });
-        </script>
         
     </body>
 </html>

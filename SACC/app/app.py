@@ -878,17 +878,111 @@ async def dashboard(request: Request, db: dp_dependecy):
     result = db.execute(sql_query)
     historial = result.fetchall()
 
-    dates_lockers = {}
-    for registro in historial:
-        if registro[3] not in dates_lockers:
-            dates_lockers[registro[3]] = [registro[5]]
+    station_usage = {}
+    total_reservations = len(reservas)
+    for reserva in reservas:
+        if reserva[5] not in station_usage:
+            station_usage[reserva[5]] = 1
         else:
-            dates_lockers[registro[3]].append(registro[5])
+            station_usage[reserva[5]] += 1
+    for station in station_usage:
+        station_usage[station] = round(station_usage[station]/total_reservations*100, 2)
+    print(station_usage)
 
+    time_of_reservations = {}
+    time_of_loads = {}
+    time_of_unloads = {}
+
+    print(historial)
+    for accion in historial:
+        if accion[7] == "creacion reserva":
+            if accion[3] not in time_of_reservations:
+                time_of_reservations[accion[3]] = [accion[5]]
+            else:
+                time_of_reservations[accion[3]].append(accion[5])
+        elif accion[7].startswith("Paquete cargador en locker"):
+            print("ENTRO")
+            if accion[3] not in time_of_loads:
+                time_of_loads[accion[3]] = [accion[5]]
+            else:
+                time_of_loads[accion[3]].append(accion[5])
+        elif accion[7].startswith("Paquete retirado de locker"):
+            if accion[3] not in time_of_unloads:
+                time_of_unloads[accion[3]] = [accion[5]]
+            else:
+                time_of_unloads[accion[3]].append(accion[5])
+
+    time_between_reservations_and_loads = {}
+    for reserva in time_of_reservations:
+        for time in range(len(time_of_reservations[reserva])):
+            try:
+                if reserva not in time_between_reservations_and_loads:
+                    time_between_reservations_and_loads[reserva] = [(time_of_loads[reserva][time] - time_of_reservations[reserva][time]).total_seconds()]
+                else:
+                    time_between_reservations_and_loads[reserva].append((time_of_loads[reserva][time] - time_of_reservations[reserva][time]).total_seconds())
+            except:
+                break
+
+    time_between_loads_and_unloads = {}
+    for reserva in time_of_loads:
+        for time in range(len(time_of_loads[reserva])):
+            try:
+                if reserva not in time_between_loads_and_unloads:
+                    time_between_loads_and_unloads[reserva] = [(time_of_unloads[reserva][time] - time_of_loads[reserva][time]).total_seconds()]
+                else:
+                    time_between_loads_and_unloads[reserva].append((time_of_unloads[reserva][time] - time_of_loads[reserva][time]).total_seconds())
+            except:
+                break
+
+    time_elapsed_since_reservations = {}
+    historial_reverse = historial[::-1]
+    for locker in lockers:
+        time_elapsed_since_reservations[locker[0]] = -1
+    for accion in historial_reverse:
+        if accion[7] == "creacion reserva":
+            if time_elapsed_since_reservations[accion[3]] == -1 or time_elapsed_since_reservations[accion[3]] == 0:
+                time_elapsed_since_reservations[accion[3]] = (datetime.now() - accion[5]).total_seconds()
+            
+    for accion in historial_reverse:
+        if accion[7].startswith("Paquete cargador en locker") and time_elapsed_since_reservations[accion[3]] > (datetime.now() - accion[5]).total_seconds():
+            print(time_elapsed_since_reservations[accion[3]])
+            print((datetime.now() - accion[5]).total_seconds())
+            time_elapsed_since_reservations[accion[3]] = 0
+
+    time_elapsed_since_loads = {}
+    for locker in lockers:
+        time_elapsed_since_loads[locker[0]] = -1
+    for accion in historial_reverse:
+        if accion[7].startswith("Paquete cargador en locker"):
+            if time_elapsed_since_loads[accion[3]] == -1 or time_elapsed_since_loads[accion[3]] == 0:
+                time_elapsed_since_loads[accion[3]] = (datetime.now() - accion[5]).total_seconds()
+            
+    for accion in historial_reverse:
+        if accion[7].startswith("Paquete retirado de locker") and time_elapsed_since_loads[accion[3]] > (datetime.now() - accion[5]).total_seconds():
+            print(time_elapsed_since_loads[accion[3]])
+            print((datetime.now() - accion[5]).total_seconds())
+            time_elapsed_since_loads[accion[3]] = 0
+
+
+    def seconds_to_hh_mm_ss(seconds):
+        days, remainder = divmod(seconds, 86400)
+        hours, remainder = divmod(remainder, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return "{:02}:{:02}:{:02}:{:02}".format(int(days), int(hours), int(minutes), int(seconds))
     
-    oldest_dates = {locker_id: min(dates) for locker_id, dates in dates_lockers.items()}
-    print(oldest_dates)
-    return templates.TemplateResponse("dashboard.html", {"request": request, "reservas": reservas, "lockers": lockers, "stations": stations, "historial": historial, "oldest_dates": oldest_dates})
+    for time in time_between_reservations_and_loads:
+        time_between_reservations_and_loads[time] =seconds_to_hh_mm_ss(round(sum(time_between_reservations_and_loads[time])/len(time_between_reservations_and_loads[time]), 2))
+    for time in time_between_loads_and_unloads:
+        time_between_loads_and_unloads[time] = seconds_to_hh_mm_ss(round(sum(time_between_loads_and_unloads[time])/len(time_between_loads_and_unloads[time]), 2))
+    # print(time_of_reservations)
+    # print(time_of_loads)
+    # print(time_between_reservations_and_loads)
+    # print(time_between_loads_and_unloads)
+    print(time_elapsed_since_reservations)
+    print(time_elapsed_since_loads)
+    return templates.TemplateResponse("dashboard.html", {"request": request, "reservas": reservas, "lockers": lockers, "stations": stations, "historial": historial, "station_usage": station_usage, "time_between_reservations_and_loads": time_between_reservations_and_loads, "time_between_loads_and_unloads": time_between_loads_and_unloads, "time_elapsed_since_reservations": time_elapsed_since_reservations, "time_elapsed_since_loads": time_elapsed_since_loads})
+
+
 
 @app.get('/new_station/')
 async def new_station(request: Request, db: dp_dependecy):
@@ -954,9 +1048,12 @@ async def bitacora(request: Request, db: dp_dependecy, reservation_id: int = Non
     datos = []
     #! Aca seguimos usando usuario, hay que revisarlo para hacerlo calzar con la nueva logica que estamos usando
     for i in acciones:
-        sql_query = text(f'SELECT * FROM "user" where id = {i[1]}')
+        sql_query = text(f'SELECT * FROM "user" where id = {i[2]}')
         result = db.execute(sql_query)
         usuario = result.fetchone()
+        print(i)
+        print(usuario)
+
         datos.append((i[0], usuario[1], i[2], i[3], i[4], i[5], i[6], i[7], usuario[3], i[8]))
     return templates.TemplateResponse("bitacora.html", {"request": request, "acciones": datos})
         
