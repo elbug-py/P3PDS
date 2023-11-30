@@ -126,13 +126,13 @@ def load_initial_data(db: Session):
         # db.commit()
         
     if not db.query(models.User).count():
-        db_user = models.User(name="operario1", token=generar_clave_alfanumerica())
+        db_user = models.User(name="operario1", token=generar_clave_alfanumerica(), timeforpickup=10)
         db.add(db_user)
-        db_user = models.User(name="operario2", token=generar_clave_alfanumerica())
+        db_user = models.User(name="operario2", token=generar_clave_alfanumerica(), timeforpickup=10)
         db.add(db_user)
-        db_user = models.User(name="cliente1", token=generar_clave_alfanumerica())
+        db_user = models.User(name="cliente1", token=generar_clave_alfanumerica(), timeforpickup=10)
         db.add(db_user)
-        db_user = models.User(name="cliente2", token=generar_clave_alfanumerica())
+        db_user = models.User(name="cliente2", token=generar_clave_alfanumerica(), timeforpickup=10)
         db.add(db_user)
         db.commit()
 
