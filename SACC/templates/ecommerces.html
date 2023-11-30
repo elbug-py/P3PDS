@@ -22,6 +22,7 @@
                         <th scope="col">ID</th>
                         <th scope="col">Nombre</th>
                         <th scope="col">Token</th>
+                        <th scope="col">Time Out</th>
                         <th scope="col">Edición</th>
                         <th scope="col">Eliminación</th>
                     </tr>
@@ -32,6 +33,7 @@
                             <td>{{ ecommerce[0] }}</td>
                             <td>{{ ecommerce[1] }}</td>
                             <td>{{ ecommerce[2] }}</td>
+                            <td>{{ ecommerce[3] }}</td>
                             <td><a href="/ecommerce/?modo=edit&id={{ ecommerce[0] }}" class="btn btn-warning">Editar</a></td>
                             <td><a href="/ecommerce/?modo=delete&id={{ ecommerce[0] }}" class="btn btn-danger">Eliminar</a></td>
                         </tr>
