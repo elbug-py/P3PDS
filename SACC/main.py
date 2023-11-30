@@ -13,6 +13,7 @@ templates = Jinja2Templates(directory="templates")
 
 
 class Station(BaseModel):
+    name: str
     address: str
     
 class Locker(BaseModel):
