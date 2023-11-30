@@ -974,19 +974,20 @@ async def create_commerce(data: ecommerceData, db: dp_dependecy):
         else:
             return {"result": False,"message":"No tienes acceso para crear el e-commerce" }
     except:
-            return {"result": False,"message":"Ha ocurrido un error" }
+        return {"result": False,"message":"Ha ocurrido un error" }
         
 @app.post('/edit_ecommerce')
 async def edit_commerce(data: ecommerceData, db: dp_dependecy):
-    if data.passInput == 'super_secret_password':
-        sql_query = text(f'UPDATE "user" SET name = :nameInput, token = :tokenInput WHERE id = :idInput')
-        db.execute(sql_query, {'nameInput': data.nameInput, 'tokenInput': data.tokenInput, 'idInput': data.idInput})
-        db.commit()
-        return {"result": True,"message":"E-commerce editado con exito"}
-    else:
-        return {"result": False,"message":"No tienes acceso para crear el e-commerce" }
-    # except:
-    # return {"result": False,"message":"Ha ocurrido un error" }
+    try:
+        if data.passInput == 'super_secret_password':
+            sql_query = text(f'UPDATE "user" SET name = :nameInput, token = :tokenInput WHERE id = :idInput')
+            db.execute(sql_query, {'nameInput': data.nameInput, 'tokenInput': data.tokenInput, 'idInput': data.idInput})
+            db.commit()
+            return {"result": True,"message":"E-commerce editado con exito"}
+        else:
+            return {"result": False,"message":"No tienes acceso para crear el e-commerce" }
+    except:
+        return {"result": False,"message":"Ha ocurrido un error" }
         
 @app.post('/delete_ecommerce')
 async def delete_commerce(data: ecommerceData, db: dp_dependecy):
@@ -1002,7 +1003,7 @@ async def delete_commerce(data: ecommerceData, db: dp_dependecy):
         else:
             return {"result": False,"message":"No tienes acceso para crear el e-commerce" }
     except:
-            return {"result": False,"message":"Ha ocurrido un error" }
+        return {"result": False,"message":"Ha ocurrido un error" }
         
 @app.get('/reservas_activas/')
 async def reservasActivas(token:str,db:dp_dependecy):
