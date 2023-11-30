@@ -1,0 +1,69 @@
+@app.get('/reservas_activas/')
+async def reservasActivas(token:str,db:dp_dependecy):
+    try:
+        sql_query = text('SELECT * FROM "user" WHERE token = :token')
+        result = db.execute(sql_query, {'token': token})
+        print(result)
+        e_commerce = result.fetchone()
+
+        if (e_commerce) == None:
+            return {"message": "Token no valido"}
+        
+        sql_query = text('SELECT * FROM reservation WHERE user_id = :user_id AND estado = :state')
+        result = db.execute(sql_query,{'user_id':e_commerce[0],
+                                        'state':'activa'})
+        reservations = result.fetchall()
+        response = []
+        print('no aca')
+        for res in reservations:
+            response.append(
+                {'id':res[0],
+                 'client_email':res[1],
+                 'order_id':res[2],
+                 'locker_id':res[3],
+                 'locker_personal_id':res[4],
+                 'station_id':res[5],
+                 'fecha':res[6],
+                 'estado':res[7],
+                 }
+            )
+            print('es el return')
+        return {"message":response}
+
+    except Exception as E:
+        return {"message": f"{E}"}
+    
+@app.get('/reservas_historicas/')
+async def reservasHistoricas(token:str,db:dp_dependecy):
+    try:
+        sql_query = text('SELECT * FROM "user" WHERE token = :token')
+        result = db.execute(sql_query, {'token': token})
+        print(result)
+        e_commerce = result.fetchone()
+
+        if (e_commerce) == None:
+            return {"message": "Token no valido"}
+        
+        sql_query = text('SELECT * FROM reservation WHERE user_id = :user_id AND estado != :state')
+        result = db.execute(sql_query,{'user_id':e_commerce[0],
+                                        'state':'finalizada'})
+        reservations = result.fetchall()
+        response = []
+        print('no aca')
+        for res in reservations:
+            response.append(
+                {'id':res[0],
+                 'client_email':res[1],
+                 'order_id':res[2],
+                 'locker_id':res[3],
+                 'locker_personal_id':res[4],
+                 'station_id':res[5],
+                 'fecha':res[6],
+                 'estado':res[7],
+                 }
+            )
+            print('es el return')
+        return {"message":response}
+
+    except Exception as E:
+        return {"message": f"{E}"}

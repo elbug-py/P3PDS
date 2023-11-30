@@ -306,9 +306,14 @@ if MQTT:
     async def message_to_topic(client, topic, payload, qos, properties):
         print("Received message to specific topic: ", topic, payload.decode(), qos, properties)
         print(payload.decode())
+        message = json.loads(payload.decode())
+
         global locker_state
-        # locker_state = json.loads(payload.decode())
-        # print(json.loads(payload.decode()))
+
+        for i,data in enumerate(locker_state['stations']):
+            if message['station_name'] == data['station_name']:
+                locker_state['stations'][i] = message
+
 
     @mqtt.on_disconnect()
     def disconnect(client, packet, exc=None):
