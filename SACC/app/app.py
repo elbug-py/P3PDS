@@ -918,26 +918,23 @@ async def process_form(request: Request, db: dp_dependecy, data: LockerData):
             db.add(db_locker)
             db.commit()
             locker_state["stations"][indice_aqui]["lockers"].append({"nickname":locker[0],"state":0, "is_open":False, "is_empty":True, "size":f"{locker[1]}x{locker[2]}x{locker[3]}"})
-        return RedirectResponse(url="/")
+        return {"result": True,"message":"Gucci" }
 
 
 @app.get('/ecommerce/')
-async def ecommerce(request: Request, db: dp_dependecy, modo: str = None, ecommerce_id: int = None):
+async def ecommerce(request: Request, db: dp_dependecy, modo: str = None, id: int = None):
     if modo == "new":
-        return templates.TemplateResponse("ecommerce.html", {"request": request})
-    elif modo == "edit":
-        sql_query = text(f"SELECT * FROM user WHERE id = {ecommerce_id}")
+        return templates.TemplateResponse("ecommerce.html", {"request": request, "modo": modo, "ecommerce": None})
+    else:
+        sql_query = text(f'SELECT * FROM "user" WHERE id = {id}')
         result = db.execute(sql_query)
         ecommerce = result.fetchone()
-        return templates.TemplateResponse("ecommerce.html", {"request": request, "ecommerce": ecommerce})
-    # else:
-        
-    
-    # return templates.TemplateResponse("ecommerce.html", {"request": request})
+        print(ecommerce)
+        return templates.TemplateResponse("ecommerce.html", {"request": request, "ecommerce": ecommerce, "modo": modo})
 
 
 @app.get('/ecommerces/')
-async def ecommerce(request: Request, db: dp_dependecy):
+async def ecommerces(request: Request, db: dp_dependecy):
     sql_query = text(f'SELECT * FROM "user"')
     result = db.execute(sql_query)
     ecommerces = result.fetchall()
@@ -957,17 +954,51 @@ async def bitacora(request: Request, db: dp_dependecy, reservation_id: int = Non
         datos.append((i[0], usuario[1], i[2], i[3], i[4], i[5], i[6], i[7], usuario[3], i[8]))
     return templates.TemplateResponse("bitacora.html", {"request": request, "acciones": datos})
         
+class ecommerceData(BaseModel):
+    idInput: int
+    nameInput: str
+    passInput: str
+    tokenInput: str
+    modoInput: str
         
 @app.post('/create_ecommerce')
-async def create_e_commerce(name:str,password:str,db: dp_dependecy):
+async def create_commerce(data: ecommerceData, db: dp_dependecy):
     try:
-        if password == 'super_secret_password':
+        if data.passInput == 'super_secret_password':
             token = generar_clave_alfanumerica()
-            db_user = models.User(name=name, token=token)
+            db_user = models.User(name=data.nameInput, token=token)
             db.add(db_user)
             db.commit()
-        
+            print(token)
             return {"result": True,"message":"E-commerce creado con exito","token":token }
+        else:
+            return {"result": False,"message":"No tienes acceso para crear el e-commerce" }
+    except:
+            return {"result": False,"message":"Ha ocurrido un error" }
+        
+@app.post('/edit_ecommerce')
+async def edit_commerce(data: ecommerceData, db: dp_dependecy):
+    if data.passInput == 'super_secret_password':
+        sql_query = text(f'UPDATE "user" SET name = :nameInput, token = :tokenInput WHERE id = :idInput')
+        db.execute(sql_query, {'nameInput': data.nameInput, 'tokenInput': data.tokenInput, 'idInput': data.idInput})
+        db.commit()
+        return {"result": True,"message":"E-commerce editado con exito"}
+    else:
+        return {"result": False,"message":"No tienes acceso para crear el e-commerce" }
+    # except:
+    # return {"result": False,"message":"Ha ocurrido un error" }
+        
+@app.post('/delete_ecommerce')
+async def delete_commerce(data: ecommerceData, db: dp_dependecy):
+    try:
+        if data.passInput == 'super_secret_password':
+            try:
+                sql_query = text(f'DELETE FROM "user" WHERE id = {int(data.idInput)}')
+                db.execute(sql_query)
+                db.commit()
+                return {"result": True,"message":"E-commerce eliminado con exito"}
+            except:
+                return {"result": True,"message":"No se puede eliminar el e-commerce porque ya tiene data asociada" }
         else:
             return {"result": False,"message":"No tienes acceso para crear el e-commerce" }
     except:
@@ -1019,7 +1050,7 @@ async def reservasHistoricas(token:str,db:dp_dependecy):
         if (e_commerce) == None:
             return {"message": "Token no valido"}
         
-        sql_query = text('SELECT * FROM reservation WHERE user_id = :user_id AND estado != :state')
+        sql_query = text('SELECT * FROM reservation WHERE user_id = :user_id AND estado = :state')
         result = db.execute(sql_query,{'user_id':e_commerce[0],
                                         'state':'finalizada'})
         reservations = result.fetchall()

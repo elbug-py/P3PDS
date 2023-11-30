@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-
 <html>
     <head>
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <title>Nueva Estación</title>
+        <title>CRUD ecommerce</title>
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="stylesheet" href="">
@@ -13,30 +12,211 @@
     </head>
     <body>
         {% include 'header.html'%}
-        <h4 class="text-center mb-4">Ecommerce</h4>
-        <div class="container w-75">
+        <h4 class="text-center my-4">Ecommerce</h4>
+        <div class="container w-50">
             {% if modo == "new" %}
-                <form id="lockerForm" class="my-3" method="POST" action="/create_ecommerce/">
-                    
-                    Crear Ecommerce
+                <form id="ecommerceCrearForm" class="my-3" method="POST" action="/create_ecommerce/">
                     <div class="mb-3">
                         <label for="nameInput" class="form-label">Nombre Ecommerce</label>
                         <input type="text" class="form-control" id="nameInput" name="nameInput" required>
                     </div>
                     <div class="mb-3">
-                        <label for="exampleInputPassword1" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="exampleInputPassword1">
+                        <input type="hidden" class="form-control" id="modoInput" name="modoInput" required value="new">
                     </div>
-                    <button type="submit" class="btn btn-primary">Crear</button>
+                    <div class="mb-3">
+                        <input type="hidden" class="form-control" id="idInput" name="idInput" required value="1">
+                    </div>
+                    <div class="mb-3">
+                        <input type="hidden" class="form-control" id="tokenInput" name="tokenInput" required value="token">
+                    </div>
+                    <div class="mb-3">
+                        <label for="passInput" class="form-label">Admin Password</label>
+                        <input type="password" class="form-control" id="passInput" name="passInput" required>
+                    </div>
+                    
+                    <div class = "alert alert-danger" role="alert" id="error" style="display:none">
+                        Contraseña Incorrecta
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="enviarFormularioCrear()">Crear</button>
                 </form>
-            {% else %}
-
-
+            {% endif %}
+            {% if modo == "edit" %}
+                <form id="ecommerceEditarForm" class="my-3" method="POST" action="/edit_ecommerce/">
+                    <div class="mb-3">
+                        <label for="nameInput" class="form-label">Nombre Ecommerce</label>
+                        <input type="text" class="form-control" id="nameInput" name="nameInput" required value="{{ecommerce[1]}}">
+                    </div>
+                    <div class="mb-3">
+                        <input type="hidden" class="form-control" id="modoInput" name="modoInput" required value="edit">
+                    </div>
+                    <div class="mb-3">
+                        <input type="hidden" class="form-control" id="idInput" name="idInput" required value="{{ecommerce[0]}}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="tokenInput" class="form-label">Token</label>
+                        <input type="text" class="form-control" id="tokenInput" name="tokenInput" required value="{{ecommerce[2]}}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="passInput" class="form-label">Admin Password</label>
+                        <input type="password" class="form-control" id="passInput" name="passInput" required>
+                    </div>
+                    
+                    <div class = "alert alert-danger" role="alert" id="error" style="display:none">
+                        Contraseña Incorrecta
+                    </div>
+                    <button type="button" class="btn btn-warning" onclick="enviarFormularioEditar()">Confirmar Edición</button>
+                </form>
+            {% endif %}
+            {% if modo == "delete" %}
+                <form id="ecommerceEliminarForm" class="my-3" method="POST" action="/delete_ecommerce/">
+                    <div class="mb-3">
+                        <label for="nameInput" class="form-label">Nombre Ecommerce</label>
+                        <input type="hidden" class="form-control" id="nameInput"  name="nameInput" required value="{{ecommerce[1]}}">
+                        <input type="text" class="form-control" id="nameInputGhost"  name="nameInputGhost" disabled required value="{{ecommerce[1]}}">
+                    </div>
+                    <div class="mb-3">
+                        <input type="hidden" class="form-control" id="modoInput" name="modoInput" required value="delete">
+                    </div>
+                    <div class="mb-3">
+                        <input type="hidden" class="form-control" id="idInput" name="idInput" required value="{{ecommerce[0]}}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="tokenInput" class="form-label">Token</label>
+                        <input type="hidden" class="form-control" id="tokenInput" name="tokenInput" required value="{{ecommerce[2]}}">
+                        <input type="text" class="form-control" id="tokenInputGhost" name="tokenInputGhost" required value="{{ecommerce[2]}}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="passInput" class="form-label">Admin Password</label>
+                        <input type="password" class="form-control" id="passInput" name="passInput" required>
+                    </div>
+                    
+                    <div class = "alert alert-danger" role="alert" id="error" style="display:none">
+                        Contraseña Incorrecta
+                    </div>
+                    <button type="button" class="btn btn-danger" onclick="enviarFormularioEliminar()">Confirmar Delete</button>
+                </form>
             {% endif %}
         </div>
         {% include 'footer.html'%}
     </body>
 </html>
+<script>
+    function enviarFormularioCrear() {
+        if (!document.getElementById('ecommerceCrearForm').checkValidity()) {
+            // El formulario no es válido, no realizar la solicitud
+            document.getElementById('ecommerceCrearForm').reportValidity();
+            console.error('Formulario no válido');
+            return;
+        }
+        // Obtén los datos del formulario
+        var formData = new FormData(document.getElementById('ecommerceCrearForm'));
+    
+        // Construye un objeto con los datos del formulario
+        var formObject = {};
+        formData.forEach(function(value, key){
+            formObject[key] = value;
+        });
+        console.log(formObject);
+    
+        // Envia el objeto como JSON
+        fetch('/create_ecommerce/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formObject),
+        })
+        .then(response => response.json())
+        .then(response => {
+            if (response.result == false){
+                document.getElementById("error").style.display = "block";
+            }else{
+                window.alert(response.message);
+                window.location.href = "/ecommerces/";
+            }
+        })
+        .catch(error => {
+            console.error('Error al enviar la solicitud:', error);
+        });
+    }
+    function enviarFormularioEditar() {
+        if (!document.getElementById('ecommerceEditarForm').checkValidity()) {
+            // El formulario no es válido, no realizar la solicitud
+            document.getElementById('ecommerceEditarForm').reportValidity();
+            console.error('Formulario no válido');
+            return;
+        }
+        // Obtén los datos del formulario
+        var formData = new FormData(document.getElementById('ecommerceEditarForm'));
+    
+        // Construye un objeto con los datos del formulario
+        var formObject = {};
+        formData.forEach(function(value, key){
+            formObject[key] = value;
+        });
+        console.log(formObject);
+    
+        // Envia el objeto como JSON
+        fetch('/edit_ecommerce/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formObject),
+        })
+        .then(response => response.json())
+        .then(response => {
+            if (response.result == false){
+                document.getElementById("error").style.display = "block";
+            }else{
+                window.alert(response.message);
+                window.location.href = "/ecommerces/";
+            }
+        })
+        .catch(error => {
+            console.error('Error al enviar la solicitud:', error);
+        });
+    }
+    function enviarFormularioEliminar() {
+        if (!document.getElementById('ecommerceEliminarForm').checkValidity()) {
+            // El formulario no es válido, no realizar la solicitud
+            document.getElementById('ecommerceEliminarForm').reportValidity();
+            console.error('Formulario no válido');
+            return;
+        }
+        // Obtén los datos del formulario
+        var formData = new FormData(document.getElementById('ecommerceEliminarForm'));
+    
+        // Construye un objeto con los datos del formulario
+        var formObject = {};
+        formData.forEach(function(value, key){
+            formObject[key] = value;
+        });
+        console.log(formObject);
+    
+        // Envia el objeto como JSON
+        fetch('/delete_ecommerce/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formObject),
+        })
+        .then(response => response.json())
+        .then(response => {
+            if (response.result == false){
+                document.getElementById("error").style.display = "block";
+            }else{
+                window.alert(response.message);
+                window.location.href = "/ecommerces/";
+            }
+        })
+        .catch(error => {
+            console.error('Error al enviar la solicitud:', error);
+        });
+    }
+
+</script>
 
 
 
