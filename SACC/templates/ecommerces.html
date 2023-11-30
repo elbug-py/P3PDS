@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>Ecommerces</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    </head>
+    <body>
+        {% include 'header.html'%}
+        <h4 class="text-center mb-4">Ecommerces</h4>
+         <div class="container-xl w-75 text-center mb-4"> 
+            <a href="/ecommerce/?modo=create" class="btn btn-success">Crear</a>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col">ID</th>
+                        <th scope="col">Nombre</th>
+                        <th scope="col">Token</th>
+                        <th scope="col">Edición</th>
+                        <th scope="col">Eliminación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ecommerce in ecommerces %}
+                        <tr>
+                            <td>{{ ecommerce[0] }}</td>
+                            <td>{{ ecommerce[1] }}</td>
+                            <td>{{ ecommerce[2] }}</td>
+                            <td><a href="/ecommerce/?modo=edit&id={{ ecommerce[0] }}" class="btn btn-warning">Editar</a></td>
+                            <td><a href="/ecommerce/?modo=delete&id={{ ecommerce[0] }}" class="btn btn-danger">Eliminar</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'footer.html'%}
+    </body>
+</html>

@@ -16,11 +16,12 @@ from datetime import datetime, timedelta
 from fastapi_mqtt.fastmqtt import FastMQTT
 from fastapi_mqtt.config import MQTTConfig
 import json
+from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 
 templates = Jinja2Templates(directory="templates")
-MQTT = True
+MQTT = False
 
 
 def generar_clave_alfanumerica(longitud=12):
@@ -837,22 +838,6 @@ async def estado_casilleros(request: Request, db: dp_dependecy):
             dic_aux[locker[0]] = {"id": locker[0], "personal_id": locker[1], "state": get_state_by_state_number(locker[2]), "height": locker[3], "width": locker[4], "depth": locker[5], "station_id": locker[7], "code": locker[6], "Status_fisico": get_state_by_state_number(get_locker_from_global_states(locker[1], station_dic[locker[7]])), "comparacion": get_comparisson_locker_state(locker[2], get_locker_from_global_states(locker[1], station_dic[locker[7]]))}
  
     return templates.TemplateResponse("estado_casilleros.html", {"request": request, "saccs": dic})
-
-# @app.post('/reservas/{reservation_id}', tags=['RESERVAS'])
-# async def reservas( reservation_id: int, request: Request, db: dp_dependecy):
-#     sql_query = text(f"SELECT * FROM historial WHERE reservation_id = {reservation_id}")
-#     result = db.execute(sql_query) 
-#     historial = result.fetchall()
-#     sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation_id}")
-#     result = db.execute(sql_query)
-#     acciones = result.fetchall()
-#     datos = []
-#     #! Aca seguimos usando usuario, hay que revisarlo para hacerlo calzar con la nueva logica que estamos usando
-#     for i in acciones:
-#         sql_query = text(f'SELECT * FROM "user" where id = {i[1]}')
-#         result = db.execute(sql_query)
-#         usuario = result.fetchone()
-#         datos.append((i[0], usuario[1], i[2], i[3], i[4], i[5], i[6], i[7], usuario[3], i[8]))
     
 
 @app.get('/reservas/')
@@ -860,7 +845,14 @@ async def reservas(request: Request, db: dp_dependecy):
     sql_query = text(f"SELECT * FROM reservation")
     result = db.execute(sql_query)
     reservas = result.fetchall()
-    return templates.TemplateResponse("reservas.html", {"request": request, "reservas": reservas})
+    stations = all_stations(db)
+    station_dic = {}
+    for station in stations:
+        station_dic[station[0]] = station[1]
+    custom_reservas = []
+    for reserva in reservas:
+        custom_reservas.append((reserva[0],reserva[1],reserva[2],reserva[3],reserva[4],station_dic[reserva[5]],reserva[6],reserva[7]))
+    return templates.TemplateResponse("reservas.html", {"request": request, "reservas": custom_reservas})
 
 
 
@@ -916,46 +908,41 @@ async def process_form(request: Request, db: dp_dependecy, data: LockerData):
         db.commit()
         sql_query = text(f"SELECT * FROM station WHERE name = '{data.nameInput}'")
         station_id = db.execute(sql_query).fetchone()[0]
+        indice_aqui = None
+        for i, station in enumerate(locker_state["stations"]):
+            if station["station_name"] == data.nameInput:
+                indice_aqui = i
+                break
         for locker in zip(data.nicknameInput, data.heightInput, data.widthInput, data.depthInput):
             db_locker = models.Locker(personal_id=locker[0], state=0, height=locker[1], width=locker[2], depth=locker[3], station_id=station_id)
             db.add(db_locker)
             db.commit()
-            locker_state["stations"][-1]["lockers"].append({"nickname":locker[0],"state":0, "is_open":False, "is_empty":True, "size":f"{locker[1]}x{locker[2]}x{locker[3]}"})
-        
-    elif data.modo == "edit":
-        print(data)
-    return {"message": "Datos recibidos correctamente"}
+            locker_state["stations"][indice_aqui]["lockers"].append({"nickname":locker[0],"state":0, "is_open":False, "is_empty":True, "size":f"{locker[1]}x{locker[2]}x{locker[3]}"})
+        return RedirectResponse(url="/")
 
 
 @app.get('/ecommerce/')
-async def ecommerce(request: Request, db: dp_dependecy):
+async def ecommerce(request: Request, db: dp_dependecy, modo: str = None, ecommerce_id: int = None):
+    if modo == "new":
+        return templates.TemplateResponse("ecommerce.html", {"request": request})
+    elif modo == "edit":
+        sql_query = text(f"SELECT * FROM user WHERE id = {ecommerce_id}")
+        result = db.execute(sql_query)
+        ecommerce = result.fetchone()
+        return templates.TemplateResponse("ecommerce.html", {"request": request, "ecommerce": ecommerce})
+    # else:
+        
     
-    return templates.TemplateResponse("ecommerce.html", {"request": request})
+    # return templates.TemplateResponse("ecommerce.html", {"request": request})
+
 
 @app.get('/ecommerces/')
 async def ecommerce(request: Request, db: dp_dependecy):
+    sql_query = text(f'SELECT * FROM "user"')
+    result = db.execute(sql_query)
+    ecommerces = result.fetchall()
+    return templates.TemplateResponse("ecommerces.html", {"request": request, "ecommerces": ecommerces})
     
-    return templates.TemplateResponse("ecommerce.html", {"request": request})
-    
-# @app.post("/accion_nueva_estacion/")
-# async def process_form(request: Request, db: dp_dependecy, data: LockerData):
-#     if data.modo == "new":
-#         db_station = models.Station(name=data.nameInput, address=data.addressInput)
-#         db.add(db_station)
-#         db.commit()
-#         # sql_query = text(f"INSERT INTO station (name, address) VALUES ('{data.nameInput}', '{data.addressInput}')")
-#         # db.execute(sql_query)
-#         # db.commit()
-#         sql_query = text(f"SELECT * FROM station WHERE name = '{data.nameInput}'")
-#         station_id = db.execute(sql_query).fetchone()[0]
-#         for locker in zip(data.nicknameInput, data.heightInput, data.widthInput, data.depthInput):
-#             sql_query = text(f"INSERT INTO locker (personal_id, state, height, width, depth, station_id) VALUES ('{locker[0]}', {0}, {locker[1]}, {locker[2]}, {locker[3]}, {station_id})")
-#             db.execute(sql_query)
-#             db.commit()
-#         # locker_state[station_id] = [0 for i in range(len(data.nicknameInput))]
-#     elif data.modo == "edit":
-#         print(data)
-#     return {"message": "Datos recibidos correctamente"}
 @app.get('/bitacora/')
 async def bitacora(request: Request, db: dp_dependecy, reservation_id: int = None):
     sql_query = text(f"SELECT * FROM historial WHERE reservation_id = {reservation_id}")
@@ -968,3 +955,90 @@ async def bitacora(request: Request, db: dp_dependecy, reservation_id: int = Non
         result = db.execute(sql_query)
         usuario = result.fetchone()
         datos.append((i[0], usuario[1], i[2], i[3], i[4], i[5], i[6], i[7], usuario[3], i[8]))
+    return templates.TemplateResponse("bitacora.html", {"request": request, "acciones": datos})
+        
+        
+@app.post('/create_ecommerce')
+async def create_e_commerce(name:str,password:str,db: dp_dependecy):
+    try:
+        if password == 'super_secret_password':
+            token = generar_clave_alfanumerica()
+            db_user = models.User(name=name, token=token)
+            db.add(db_user)
+            db.commit()
+        
+            return {"result": True,"message":"E-commerce creado con exito","token":token }
+        else:
+            return {"result": False,"message":"No tienes acceso para crear el e-commerce" }
+    except:
+            return {"result": False,"message":"Ha ocurrido un error" }
+        
+@app.get('/reservas_activas/')
+async def reservasActivas(token:str,db:dp_dependecy):
+    try:
+        sql_query = text('SELECT * FROM "user" WHERE token = :token')
+        result = db.execute(sql_query, {'token': token})
+        print(result)
+        e_commerce = result.fetchone()
+
+        if (e_commerce) == None:
+            return {"message": "Token no valido"}
+        
+        sql_query = text('SELECT * FROM reservation WHERE user_id = :user_id AND estado = :state')
+        result = db.execute(sql_query,{'user_id':e_commerce[0],
+                                        'state':'activa'})
+        reservations = result.fetchall()
+        response = []
+        print('no aca')
+        for res in reservations:
+            response.append(
+                {'id':res[0],
+                 'client_email':res[1],
+                 'order_id':res[2],
+                 'locker_id':res[3],
+                 'locker_personal_id':res[4],
+                 'station_id':res[5],
+                 'fecha':res[6],
+                 'estado':res[7],
+                 }
+            )
+            print('es el return')
+        return {"message":response}
+
+    except Exception as E:
+        return {"message": f"{E}"}
+    
+@app.get('/reservas_historicas/')
+async def reservasHistoricas(token:str,db:dp_dependecy):
+    try:
+        sql_query = text('SELECT * FROM "user" WHERE token = :token')
+        result = db.execute(sql_query, {'token': token})
+        print(result)
+        e_commerce = result.fetchone()
+
+        if (e_commerce) == None:
+            return {"message": "Token no valido"}
+        
+        sql_query = text('SELECT * FROM reservation WHERE user_id = :user_id AND estado != :state')
+        result = db.execute(sql_query,{'user_id':e_commerce[0],
+                                        'state':'finalizada'})
+        reservations = result.fetchall()
+        response = []
+        print('no aca')
+        for res in reservations:
+            response.append(
+                {'id':res[0],
+                 'client_email':res[1],
+                 'order_id':res[2],
+                 'locker_id':res[3],
+                 'locker_personal_id':res[4],
+                 'station_id':res[5],
+                 'fecha':res[6],
+                 'estado':res[7],
+                 }
+            )
+            print('es el return')
+        return {"message":response}
+
+    except Exception as E:
+        return {"message": f"{E}"}

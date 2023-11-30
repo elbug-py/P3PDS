@@ -13,49 +13,26 @@
     </head>
     <body>
         {% include 'header.html'%}
-        <h4 class="text-center mb-4">Añadir Estación</h4>
+        <h4 class="text-center mb-4">Ecommerce</h4>
         <div class="container w-75">
-            <form id="lockerForm" class="my-3" method="POST" action="/accion_nueva_estacion/">
-                
-                Estacion
-                <div class="mb-3">
-                    <label for="nameInput" class="form-label">Nombre Estación</label>
-                    <input type="text" class="form-control" id="nameInput" name="nameInput" required>
-                </div>
-                <div class="mb-3">
-                    <label for="addressInput" class="form-label">Dirección Estación</label>
-                    <input type="text" class="form-control" id="addressInput" name="addressInput" required>
-                </div>
-            
-                <div id="lockersAll">
-                    <div id="lockerContainer" class="locker-container mb-3">
-                        <div id="lockerCount">
-                            Locker 1
-                        </div>
-                        <div class="mb-3 locker">
-                            <label for="nicknameInput" class="form-label">Nickname del locker</label>
-                            <input type="text" class="form-control" id="nicknameInput[]" name="nicknameInput[]" required>
-                        </div>
-                        <div class="row">
-                            <div class="col">
-                                <label for="heightInput" class="form-label">Alto [cm]</label>
-                                <input type="number" class="form-control" id="heightInput[]" name="heightInput[]" required>
-                            </div>
-                            <div class="col">
-                                <label for="widthInput" class="form-label">Ancho [cm]</label>
-                                <input type="number" class="form-control" id="widthInput[]" name="widthInput[]" required>
-                            </div>
-                            <div class="col">
-                                <label for="depthInput" class="form-label">Profundidad [cm]</label>
-                                <input type="number" class="form-control" name="depthInput[]" id="depthInput[]" required>
-                            </div>
-                        </div>
+            {% if modo == "new" %}
+                <form id="lockerForm" class="my-3" method="POST" action="/create_ecommerce/">
+                    
+                    Crear Ecommerce
+                    <div class="mb-3">
+                        <label for="nameInput" class="form-label">Nombre Ecommerce</label>
+                        <input type="text" class="form-control" id="nameInput" name="nameInput" required>
                     </div>
-                </div>
-            
-                <button type="button" class="btn btn-primary" onclick="addLocker()">Añadir Otro Locker</button>
-                <button type="button" class="btn btn-primary" onclick="enviarFormulario()">Enviar</button>
-            </form>
+                    <div class="mb-3">
+                        <label for="exampleInputPassword1" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="exampleInputPassword1">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Crear</button>
+                </form>
+            {% else %}
+
+
+            {% endif %}
         </div>
         {% include 'footer.html'%}
     </body>

@@ -121,6 +121,7 @@
         .then(data => {
             // Manejar la respuesta del servidor
             console.log(data);
+            window.location.href = "/estado_casilleros/";
         })
         .catch(error => {
             console.error('Error al enviar la solicitud:', error);
