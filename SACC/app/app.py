@@ -246,12 +246,21 @@ def encontrar_locker_mas_pequeno(alto_paquete, ancho_paquete, profundidad_paquet
     return None
 
 def revisar_reservas_expiradas(db: Session, max_minutes: int = 24):
+    print('ACA')
     sql_query = text(f"SELECT * FROM reservation WHERE estado = 'activa'")
     result = db.execute(sql_query)
     reservas = result.fetchall()
+  
+
+
     for reserva in reservas:
+        sql_query = text('SELECT * FROM "user" WHERE id =:user_id')
+        result = db.execute(sql_query,{'user_id':reserva[2]})
+        e_commerce  = result.fetchone()
+        print('?')
+        print(reserva[6])
         if datetime.now() - reserva[6] > timedelta(minutes=max_minutes):
-            create_record(db, reserva[0], reserva[1], reserva[3], reserva[5], datetime.now(), reserva[2], "Reserva expirada, estado cambia a cancelada")
+            create_record(db, reserva[0], e_commerce[0], reserva[3], reserva[5], datetime.now(), reserva[2], "Reserva expirada, estado cambia a cancelada",reserva[1])
             sql_query = text(f"UPDATE reservation SET estado = 'cancelada' WHERE id = {reserva[0]}")
             db.execute(sql_query)
             db.commit()
