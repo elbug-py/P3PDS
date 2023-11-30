@@ -127,44 +127,44 @@
 </html>
 
 <script>
-    function enviarFormularioCrear() {
-        if (!document.getElementById('ecommerceCrearForm').checkValidity()) {
-            // El formulario no es válido, no realizar la solicitud
-            document.getElementById('ecommerceCrearForm').reportValidity();
-            console.error('Formulario no válido');
-            return;
-        }
-        // Obtén los datos del formulario
-        var formData = new FormData(document.getElementById('ecommerceCrearForm'));
+    // function enviarFormularioCrear() {
+    //     if (!document.getElementById('ecommerceCrearForm').checkValidity()) {
+    //         // El formulario no es válido, no realizar la solicitud
+    //         document.getElementById('ecommerceCrearForm').reportValidity();
+    //         console.error('Formulario no válido');
+    //         return;
+    //     }
+    //     // Obtén los datos del formulario
+    //     var formData = new FormData(document.getElementById('ecommerceCrearForm'));
     
-        // Construye un objeto con los datos del formulario
-        var formObject = {};
-        formData.forEach(function(value, key){
-            formObject[key] = value;
-        });
-        console.log(formObject);
+    //     // Construye un objeto con los datos del formulario
+    //     var formObject = {};
+    //     formData.forEach(function(value, key){
+    //         formObject[key] = value;
+    //     });
+    //     console.log(formObject);
     
-        // Envia el objeto como JSON
-        fetch('/create_ecommerce/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(formObject),
-        })
-        .then(response => response.json())
-        .then(response => {
-            if (response.result == false){
-                document.getElementById("error").style.display = "block";
-            }else{
-                window.alert(response.message);
-                window.location.href = "/ecommerces/";
-            }
-        })
-        .catch(error => {
-            console.error('Error al enviar la solicitud:', error);
-        });
-    }
+    //     // Envia el objeto como JSON
+    //     fetch('/create_ecommerce/', {
+    //         method: 'POST',
+    //         headers: {
+    //             'Content-Type': 'application/json',
+    //         },
+    //         body: JSON.stringify(formObject),
+    //     })
+    //     .then(response => response.json())
+    //     .then(response => {
+    //         if (response.result == false){
+    //             document.getElementById("error").style.display = "block";
+    //         }else{
+    //             window.alert(response.message);
+    //             window.location.href = "/ecommerces/";
+    //         }
+    //     })
+    //     .catch(error => {
+    //         console.error('Error al enviar la solicitud:', error);
+    //     });
+    // }
     function enviarFormularioEditar() {
         if (!document.getElementById('ecommerceEditarForm').checkValidity()) {
             // El formulario no es válido, no realizar la solicitud
