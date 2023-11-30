@@ -1020,7 +1020,6 @@ async def process_form(request: Request, db: dp_dependecy, data: LockerData):
             locker_state["stations"][indice_aqui]["lockers"].append({"nickname":locker[0],"state":0, "is_open":False, "is_empty":True, "size":f"{locker[1]}x{locker[2]}x{locker[3]}"})
         return {"result": True,"message":"Gucci" }
 
-
 @app.get('/ecommerce/')
 async def ecommerce(request: Request, db: dp_dependecy, modo: str = None, id: int = None):
     if modo == "new":

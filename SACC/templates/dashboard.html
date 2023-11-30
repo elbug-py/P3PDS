@@ -134,10 +134,13 @@
 
         {{time_between_reservations_and_loads}}
         {{time_between_loads_and_unloads}}
+        
         {% include 'footer.html'%}
 
         <script>
             document.addEventListener("DOMContentLoaded", function () {
+            let reservas = '{{reservas}}'
+            console.log(reservas)
             var buttons = document.querySelectorAll(".toggle-button");
 
             buttons.forEach(function (button) {
