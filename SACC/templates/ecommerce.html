@@ -46,7 +46,7 @@
                     <div class = "alert alert-danger" role="alert" id="error" style="display:none">
                         Contraseña Incorrecta
                     </div>
-                    <button type="button" class="btn btn-primary" onclick="enviarFormularioCrear()">Crear</button>
+                    <button type="submit" class="btn btn-primary" onclick="enviarFormularioCrear()">Crear</button>
                 </form>
             {% endif %}
             {% if modo == "edit" %}
@@ -81,7 +81,7 @@
                     <div class = "alert alert-danger" role="alert" id="error" style="display:none">
                         Contraseña Incorrecta
                     </div>
-                    <button type="button" class="btn btn-warning" onclick="enviarFormularioEditar()">Confirmar Edición</button>
+                    <button type="submit" class="btn btn-warning" onclick="enviarFormularioEditar()">Confirmar Edición</button>
                 </form>
             {% endif %}
             {% if modo == "delete" %}
@@ -118,7 +118,7 @@
                     <div class = "alert alert-danger" role="alert" id="error" style="display:none">
                         Contraseña Incorrecta
                     </div>
-                    <button type="button" class="btn btn-danger" onclick="enviarFormularioEliminar()">Confirmar Delete</button>
+                    <button type="submit" class="btn btn-danger" onclick="enviarFormularioEliminar()">Confirmar Delete</button>
                 </form>
             {% endif %}
         </div>
@@ -145,7 +145,7 @@
         console.log(formObject);
     
         // Envia el objeto como JSON
-        fetch('/create_ecommerce', {
+        fetch('https://p3pds-production.up.railway.app/create_ecommerce', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -183,7 +183,7 @@
         console.log(formObject);
     
         // Envia el objeto como JSON
-        fetch('/edit_ecommerce', {
+        fetch('https://p3pds-production.up.railway.app/edit_ecommerce', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -221,7 +221,7 @@
         console.log(formObject);
     
         // Envia el objeto como JSON
-        fetch('/delete_ecommerce', {
+        fetch('https://p3pds-production.up.railway.app/delete_ecommerce', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
