@@ -371,7 +371,7 @@ async def get_available_lockers(db: dp_dependecy):
 
 # del pdf es la 2
 @app.post('/reserve', tags=['RESERVAR'])
-async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: int, client_email: str,token :str, db: dp_dependecy):
+async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: int,station_id:int, client_email: str,token :str, db: dp_dependecy):
     try:
         try:
             sql_query = text('SELECT * FROM "user" WHERE token = :token')
@@ -384,8 +384,8 @@ async def reservar(alto_paquete: int, ancho_paquete: int, profundidad_paquete: i
             print(e_commerce)
 
             revisar_reservas_expiradas(db,e_commerce[3])
-            sql_query = text(f"SELECT * FROM locker WHERE state = 0")
-            result = db.execute(sql_query)
+            sql_query = text(f"SELECT * FROM locker WHERE state = 0 AND station_id = :station_id")
+            result = db.execute(sql_query,{'station_id':station_id})
             lockers = result.fetchall()
             if len(lockers) == 0:
                 return {"message": "Failed to reserve, no available lockers"}
