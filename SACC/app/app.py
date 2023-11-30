@@ -20,7 +20,7 @@ from fastapi.templating import Jinja2Templates
 
 
 templates = Jinja2Templates(directory="templates")
-MQTT = False
+MQTT = True
 
 
 def generar_clave_alfanumerica(longitud=12):
@@ -106,6 +106,8 @@ def load_initial_data(db: Session):
         db_locker = models.Locker(state=0, height=40, width=40, depth=20, station_id=1, personal_id=3)
         db.add(db_locker)
         db.commit()
+
+    
         
         # db_locker = models.Locker(state=0, height=20, width=50, depth=25, station_id=2, personal_id=1)
         # db.add(db_locker)
@@ -139,6 +141,29 @@ def load_initial_data(db: Session):
             db_state = models.States(locker_id=locker.id, state=locker.state)
             db.add(db_state)
         db.commit()
+
+    if not db.query(models.Order).count():
+        db_order = models.Order(name="order1", width=20, height=20, depth=20)
+        db.add(db_order)
+        db_order = models.Order(name="order2", width=30, height=30, depth=30)
+        db.add(db_order)
+        db_order = models.Order(name="order3", width=40, height=40, depth=40)
+        db.add(db_order)
+        db.commit()
+
+    # if not db.query(models.Reservation).count():
+    #     db_reservation = models.Reservation(user_id=3, order_id=1, locker_id=1, locker_personal_id=1, station_id=1, fecha=datetime.now(), estado="activa")
+    #     db.add(db_reservation)
+    #     db.commit()
+
+    # if not db.query(models.Historial).count():
+    #     db_historial = models.Historial(reservation_id=3, user_id=1, locker_id=1, station_id=1, fecha=datetime.now(), order_id=1, accion="creacion reserva")
+    #     db.add(db_historial)
+    #     db_historial = models.Historial(reservation_id=3, user_id=1, locker_id=2, station_id=1, fecha=datetime.now(), order_id=1, accion="reserva confirmada, medidas correctas")
+    #     db.add(db_historial)
+    #     db_historial = models.Historial(reservation_id=3, user_id=1, locker_id=3, station_id=1, fecha=datetime.now(), order_id=1, accion="Listo para retirar")
+    #     db.add(db_historial)
+    #     db.commit()
     
     
 dp_dependecy = Annotated[Session, Depends(get_db)]
@@ -813,9 +838,12 @@ async def estado_casilleros(request: Request, db: dp_dependecy):
  
     return templates.TemplateResponse("estado_casilleros.html", {"request": request, "saccs": dic})
 
-@app.get('/bitacora/')
-async def bitacora(request: Request, db: dp_dependecy, reservation_id: int = None):
+@app.post('/reservas/{reservation_id}', tags=['RESERVAS'])
+async def reservas( reservation_id: int, request: Request, db: dp_dependecy):
     sql_query = text(f"SELECT * FROM historial WHERE reservation_id = {reservation_id}")
+    result = db.execute(sql_query) 
+    historial = result.fetchall()
+    sql_query = text(f"SELECT * FROM reservation WHERE id = {reservation_id}")
     result = db.execute(sql_query)
     acciones = result.fetchall()
     datos = []
@@ -826,34 +854,43 @@ async def bitacora(request: Request, db: dp_dependecy, reservation_id: int = Non
         usuario = result.fetchone()
         datos.append((i[0], usuario[1], i[2], i[3], i[4], i[5], i[6], i[7], usuario[3], i[8]))
     
-    return templates.TemplateResponse("bitacora.html", {"request": request, "acciones": datos})
 
-@app.get('/reservas/')
-async def reservas(request: Request, db: dp_dependecy):
+# @app.get('/reservas/')
+# async def reservas(request: Request, db: dp_dependecy):
+#     sql_query = text(f"SELECT * FROM reservation")
+#     result = db.execute(sql_query)
+#     reservas = result.fetchall()
+#     return templates.TemplateResponse("reservas.html", {"request": request, "reservas": reservas})
+
+
+
+
+@app.get('/dashboard/')
+async def dashboard(request: Request, db: dp_dependecy):
     sql_query = text(f"SELECT * FROM reservation")
     result = db.execute(sql_query)
     reservas = result.fetchall()
-    return templates.TemplateResponse("reservas.html", {"request": request, "reservas": reservas})
+    sql_query = text(f"SELECT * FROM locker")
+    result = db.execute(sql_query)
+    lockers = result.fetchall()
+    sql_query = text(f"SELECT * FROM station")
+    result = db.execute(sql_query)
+    stations = result.fetchall()
+    sql_query = text(f"SELECT * FROM historial")
+    result = db.execute(sql_query)
+    historial = result.fetchall()
 
-#TODO we need to make a @app.get('/reservas_activas/') to obtain the active reservas for an specific e-commerce
-
-#TODO We need to create and endpoint to send the messages of changes in the reservation id for an speciffic e-commerce
-
-@app.post('/create_e_commerce')
-async def create_e_commerce(name:str,password:str,db: dp_dependecy):
-    try:
-        if password == 'super_secret_password':
-            token = generar_clave_alfanumerica()
-            db_user = models.User(name=name, token=token)
-            db.add(db_user)
-            db.commit()
-        
-            return {"result": True,"message":"E-commerce creado con exito","token":token }
+    dates_lockers = {}
+    for registro in historial:
+        if registro[3] not in dates_lockers:
+            dates_lockers[registro[3]] = [registro[5]]
         else:
-            return {"result": False,"message":"No tienes acceso para crear el e-commerce" }
-    except:
-            return {"result": False,"message":"Ha ocurrido un error" }
+            dates_lockers[registro[3]].append(registro[5])
 
+    
+    oldest_dates = {locker_id: min(dates) for locker_id, dates in dates_lockers.items()}
+    print(oldest_dates)
+    return templates.TemplateResponse("dashboard.html", {"request": request, "reservas": reservas, "lockers": lockers, "stations": stations, "historial": historial, "oldest_dates": oldest_dates})
 
 @app.get('/new_station/')
 async def new_station(request: Request, db: dp_dependecy):
