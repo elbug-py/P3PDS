@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>UNLOAD</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    </head>
+    <body>
+        {% include 'header.html'%}
+        <h4 class="text-center my-4">Retirar Paquete</h4>
+        <div class="container w-50">
+            <form id="loadForm" class="my-3" method="POST" action="/load/">
+                <div class="mb-3">
+                    <label for="reservation" class="form-label">Reservation Id</label>
+                    <input type="number" class="form-control" id="reservation" name="reservation" required>
+                </div>
+                <div class="mb-3">
+                    <label for="code" class="form-label">Code</label>
+                    <input type="text" class="form-control" id="code" name="code" required>
+                </div>
+                <div class = "alert alert-danger" role="alert" id="error" style="display:none">
+                    
+                </div>
+                <button type="button" class="btn btn-primary" onclick="enviarFormularioCrear()">Abrir Locker</button>
+            </form>
+        </div>
+        {% include 'footer.html'%}
+    </body>
+</html>
+
+<script>
+    function enviarFormularioCrear() {
+        if (!document.getElementById('loadForm').checkValidity()) {
+            // El formulario no es válido, no realizar la solicitud
+            document.getElementById('loadForm').reportValidity();
+            console.error('Formulario no válido');
+            return;
+        }
+        // Obtén los datos del formulario
+        var formData = new FormData(document.getElementById('loadForm'));
+    
+        // Construye un objeto con los datos del formulario
+        var formObject = {};
+        formData.forEach(function(value, key){
+            formObject[key] = value;
+        });
+        console.log(formObject);
+    
+        // Envia el objeto como JSON
+        fetch('/unload?reservation='+formObject.reservation+'&code='+formObject.code,
+            {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(response => {
+            if (response.result == "success"){
+                window.alert(response.message);
+                window.location.href = "/";
+            }else{
+                document.getElementById("error").style.display = "block";
+                document.getElementById("error").innerHTML = response.message;
+            }
+        })
+        .catch(error => {
+            console.error('Error al enviar la solicitud:', error);
+        });
+    }
+
+</script>
+
+

@@ -735,7 +735,7 @@ async def load(reservation: int,code: str, db: dp_dependecy):
 
 
 
-                    return {"message": f"Se ha abierto el espacio {locker[1]}, la nueva clave es {clave}"}
+                    return {"message": f"Se ha abierto el espacio {locker[1]}, la nueva clave es {clave}", "result": "success"}
         except Exception as E:
             return {"message": f"{E}"}
     except requests.exceptions.Timeout:
@@ -796,7 +796,7 @@ async def load(reservation: int,code: str, db: dp_dependecy):
 
 
 
-                    return {"message": f"Se ha abierto el espacio {locker[1]}"}
+                    return {"message": f"Se ha abierto el espacio {locker[1]}", "result": "success"}
         except Exception as E:
             return {"message": f"{E}"}
     except requests.exceptions.Timeout:
@@ -1195,3 +1195,11 @@ async def changeTime(token:str,minutes:int,db:dp_dependecy):
     db.execute(sql_query, {'new_time': minutes, 'current_id': e_commerce[0]})
     db.commit()
     return {'message':'Tiempo actualizado con exito'}
+
+@app.get('/load_form/')
+async def ecommerces(request: Request):
+    return templates.TemplateResponse("load_form.html", {"request": request})
+
+@app.get('/unload_form/')
+async def ecommerces(request: Request):
+    return templates.TemplateResponse("unload_form.html", {"request": request})
