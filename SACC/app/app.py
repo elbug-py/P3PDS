@@ -994,15 +994,15 @@ class LockerData(BaseModel):
     nameInput: str
     addressInput: str
     nicknameInput: List[str]
-    heightInput: List[float]
-    widthInput: List[float]
-    depthInput: List[float]
+    heightInput: List[int]
+    widthInput: List[int]
+    depthInput: List[int]
     modo: str
     
 @app.post("/accion_nueva_estacion/")
 async def process_form(request: Request, db: dp_dependecy, data: LockerData):
     if data.modo == "new":
-        locker_state["stations"].append({"station_name":data.nameInput,"nickname":data.addressInput,"lockers":[]})
+        locker_state["stations"].append({"station_name":data.nameInput,"address":data.addressInput,"lockers":[]})
         db_station = models.Station(name=data.nameInput, address=data.addressInput)
         db.add(db_station)
         db.commit()
@@ -1202,3 +1202,16 @@ async def ecommerces(request: Request):
 @app.get('/unload_form/')
 async def ecommerces(request: Request):
     return templates.TemplateResponse("unload_form.html", {"request": request})
+
+@app.get('/revision_fisica/')
+async def revision_fisica(request: Request):
+    global locker_state
+    
+    results = []
+    for station in locker_state["stations"]:
+        print(station)
+        aux = []
+        for locker in station["lockers"]:
+            aux.append({"nickname":locker["nickname"],"state":locker["state"],"is_open":locker["is_open"],"is_empty":locker["is_empty"], "size":locker["size"]})
+        results.append({"station_name":station["station_name"],"address":station["address"],"lockers":aux})
+    return templates.TemplateResponse("revision_fisica.html", {"request": request, "results": results})
