@@ -1064,6 +1064,7 @@ class ecommerceData(BaseModel):
     tokenInput: str
     modoInput: str
     timeForPickupInput: int
+    emailInput: str
         
 @app.post('/create_ecommerce')
 async def create_commerce(data: ecommerceData, db: dp_dependecy):
@@ -1074,6 +1075,11 @@ async def create_commerce(data: ecommerceData, db: dp_dependecy):
             db.add(db_user)
             db.commit()
             print(token)
+            print(data)
+            print(data.emailInput)
+            await send_email_async('API TOKEN',f'{data.emailInput}',
+                                f"Tu token para la api es: {token}")
+                        
             return {"result": True,"message":"E-commerce creado con exito","token":token }
         else:
             return {"result": False,"message":"No tienes acceso para crear el e-commerce" }

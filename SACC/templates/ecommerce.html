@@ -34,6 +34,10 @@
                         <input type="number" class="form-control" id="timeForPickupInput" name="timeForPickupInput" required>
                     </div>
                     <div class="mb-3">
+                        <label for="emailInput" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="emailInput" name="emailInput" required>
+                    </div>
+                    <div class="mb-3">
                         <label for="passInput" class="form-label">Admin Password</label>
                         <input type="password" class="form-control" id="passInput" name="passInput" required>
                     </div>
@@ -64,6 +68,10 @@
                     <div class="mb-3">
                         <label for="timeForPickupInput" class="form-label">Timeout</label>
                         <input type="number" class="form-control" id="timeForPickupInput" name="timeForPickupInput" required value="{{ecommerce[3]}}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="emailInput" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="emailInput" name="emailInput" required>
                     </div>
                     <div class="mb-3">
                         <label for="passInput" class="form-label">Admin Password</label>
@@ -100,6 +108,10 @@
                         <input type="number" class="form-control" id="timeForPickupInputGhost" name="timeForPickupInputGhost" disabled required value="{{ecommerce[3]}}">
                     </div>
                     <div class="mb-3">
+                        <label for="emailInput" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="emailInput" name="emailInput" required>
+                    </div>
+                    <div class="mb-3">
                         <label for="passInput" class="form-label">Admin Password</label>
                         <input type="password" class="form-control" id="passInput" name="passInput" required>
                     </div>
@@ -114,6 +126,7 @@
         {% include 'footer.html'%}
     </body>
 </html>
+
 <script>
     function enviarFormularioCrear() {
         if (!document.getElementById('ecommerceCrearForm').checkValidity()) {
